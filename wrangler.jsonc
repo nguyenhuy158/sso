@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "huyab-sso",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "ISSUER": "https://auth.huyab.click",
+    "COOKIE_DOMAIN": ".huyab.click",
+    // Only hosts inside this domain may be redirected back to after login.
+    "ALLOWED_REDIRECT_SUFFIX": ".huyab.click",
+    "SESSION_TTL_SECONDS": "86400"
+  },
+  "routes": [{ "pattern": "auth.huyab.click", "custom_domain": true }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      // Shared with other projects, hence the sso_ table prefix.
+      "database_name": "db",
+      "database_id": "6eb9cfce-f6f3-4476-8e46-7c8e954d93c1"
+    }
+  ]
+}
