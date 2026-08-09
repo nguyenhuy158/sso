@@ -46,6 +46,9 @@ again.
 
 ## Using it from an app
 
+Full integration guide, with examples for Workers, Node/Express and FastAPI:
+[docs/INTEGRATION.md](docs/INTEGRATION.md). The short version follows.
+
 Send visitors who need an account to the login endpoint:
 
 ```
