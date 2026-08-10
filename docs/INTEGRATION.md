@@ -78,6 +78,10 @@ Whatever the language, the checks are the same four:
 4. cache the imported key — refetching JWKS per request adds a round trip to
    every page load.
 
+Prefer copying files over retyping a snippet? [`scaffold/cloudflare-worker`](../scaffold/cloudflare-worker)
+has the Worker example below as ready-to-copy files (`sso-verifier.js` +
+`session.js`), plus the `resolveUserId` pattern from section 6.
+
 ### Cloudflare Workers / any WebCrypto runtime
 
 ```ts
