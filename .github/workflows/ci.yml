@@ -10,60 +10,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # pnpm check (tsc), then `wrangler deploy --dry-run` to catch bundling errors
+  # without credentials. `pnpm e2e` mints a throwaway signing key, starts
+  # wrangler dev with it and runs both smoke suites; no secrets needed.
   check:
-    name: Typecheck, build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Typecheck
-        run: pnpm check
-
-      # wrangler deploy --dry-run: bundles the Worker without credentials, so
-      # import/bundling errors fail here instead of at deploy time.
-      - name: Build
-        run: pnpm build
-
-  e2e:
-    name: E2E smoke
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      # playwright-core downloads no browser; install the matching Chromium into
-      # ~/.cache/ms-playwright, where e2e/chromium.mjs looks for it.
-      - name: Install Chromium
-        run: pnpm exec playwright-core install --with-deps chromium
-
-      # `pnpm e2e` mints a throwaway signing key, starts wrangler dev with it,
-      # runs both smoke suites and stops the server. No secrets needed.
-      - name: E2E
-        run: pnpm e2e
-
-      - name: Upload failure screenshot
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-failure
-          path: e2e-failure.png
-          if-no-files-found: ignore
+    uses: nguyenhuy158/kit/.github/workflows/check.yml@v0.1.0
+    with:
+      run-build: true
+      run-e2e: true
