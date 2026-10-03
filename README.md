@@ -47,9 +47,7 @@ again.
 ## Using it from an app
 
 Full integration guide, with examples for Workers, Node/Express and FastAPI:
-[docs/INTEGRATION.md](docs/INTEGRATION.md). Want runnable files instead of a
-snippet to retype? [scaffold/cloudflare-worker](scaffold/cloudflare-worker)
-is copy-paste ready. The short version follows.
+[docs/INTEGRATION.md](docs/INTEGRATION.md). The short version follows.
 
 Send visitors who need an account to the login endpoint:
 
@@ -57,55 +55,24 @@ Send visitors who need an account to the login endpoint:
 https://auth.huyab.click/login?redirect_uri=https://yourapp.huyab.click/
 ```
 
-Then verify the cookie. The snippet below is a Worker; anything that can fetch a
-URL and check an RSA signature works the same way.
+Then verify the cookie. JavaScript/TypeScript apps use
+[`@huyab/sso`](https://github.com/nguyenhuy158/kit#huyabsso) (Web Crypto, no
+dependency, JWKS key cached per isolate) instead of copying a verifier:
 
-```ts
-const ISSUER = "https://auth.huyab.click";
-let jwks: CryptoKey | null = null;
-
-async function publicKey() {
-  if (jwks) return jwks;
-  const { keys } = await fetch(`${ISSUER}/.well-known/jwks.json`).then((r) => r.json());
-  jwks = await crypto.subtle.importKey(
-    "jwk",
-    { ...keys[0], ext: true },
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false,
-    ["verify"],
-  );
-  return jwks;
-}
-
-const decode = (part: string) =>
-  Uint8Array.from(
-    atob(part.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(part.length / 4) * 4, "=")),
-    (c) => c.charCodeAt(0),
-  );
-
-export async function currentUser(request: Request) {
-  const token = request.headers.get("Cookie")?.match(/huyab_sso=([^;]+)/)?.[1];
-  if (!token) return null;
-
-  const [header, payload, signature] = token.split(".");
-  if (!signature) return null;
-
-  const valid = await crypto.subtle.verify(
-    "RSASSA-PKCS1-v1_5",
-    await publicKey(),
-    decode(signature),
-    new TextEncoder().encode(`${header}.${payload}`),
-  );
-  if (!valid) return null;
-
-  const claims = JSON.parse(new TextDecoder().decode(decode(payload)));
-  if (claims.iss !== ISSUER || claims.exp <= Date.now() / 1000) return null;
-  return claims; // { sub, email, name, picture, exp }
-}
+```sh
+pnpm add "github:nguyenhuy158/kit#v0.1.0&path:packages/sso"
 ```
 
-Cache the imported key across requests, as above — fetching the JWKS on every
-request would add a round trip to each page load.
+```ts
+import { getClaimsFromRequest, ssoUrl } from "@huyab/sso";
+
+const claims = await getClaimsFromRequest(request, env.SSO_ISSUER); // { sub, email, name, picture, exp } | null
+if (!claims) return Response.redirect(ssoUrl(env.SSO_ISSUER, "/login", request.url), 302);
+```
+
+Hono apps can guard routes with `requireUser()` from `@huyab/sso/hono`. Anything
+else that can fetch a URL and check an RSA signature works the same way; see the
+guide.
 
 ## Local development
 

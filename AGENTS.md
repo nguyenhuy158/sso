@@ -19,7 +19,6 @@ scripts/keygen.mjs             # Generate the RSA private key JWK for JWT_PRIVAT
 e2e/                           # E2E smoke (playwright-core): run.mjs, readonly-smoke.mjs, ui-smoke.mjs
 schema.sql                     # D1 schema; every table is prefixed sso_ (shared DB)
 docs/INTEGRATION.md            # Guide for relying apps (Workers, Express, FastAPI)
-scaffold/cloudflare-worker/    # Copy-paste consumer files for other Workers (plain JS)
 wrangler.jsonc                 # Worker config: vars, custom domain, shared D1 binding
 .dev.vars.example              # Template for local secrets
 ```
@@ -99,8 +98,8 @@ every `*.huyab.click` app depends on it.
 
 Keep responses short and focused. If a requirement is unclear, ask before making
 assumptions. Changes to claims, cookie attributes or the JWKS shape are breaking
-for every relying app: update `docs/INTEGRATION.md` and
-`scaffold/cloudflare-worker/` in the same change.
+for every relying app: update `docs/INTEGRATION.md` in the same change and
+`@huyab/sso` in kit (new tag, then bump every consumer).
 Design UI/UX to fit inside a single viewport by default. Avoid page-level
 scrolling; use compact layouts, tabs, panes, or contained internal lists when
 content can overflow.

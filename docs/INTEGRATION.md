@@ -78,70 +78,43 @@ Whatever the language, the checks are the same four:
 4. cache the imported key — refetching JWKS per request adds a round trip to
    every page load.
 
-Prefer copying files over retyping a snippet? [`scaffold/cloudflare-worker`](../scaffold/cloudflare-worker)
-has the Worker example below as ready-to-copy files (`sso-verifier.js` +
-`session.js`), plus the `resolveUserId` pattern from section 6.
-
 ### Cloudflare Workers / any WebCrypto runtime
 
-```ts
-const ISSUER = "https://auth.huyab.click";
-let cachedKey: Promise<CryptoKey> | null = null;
+Use [`@huyab/sso`](https://github.com/nguyenhuy158/kit#huyabsso) instead of
+copying a verifier: plain TypeScript on Web Crypto, no dependency, it does all
+four checks (keys cached per isolate, failed fetches not cached) and reads the
+`huyab_sso` cookie or an `Authorization: Bearer` header.
 
-function publicKey() {
-  cachedKey ??= (async () => {
-    const { keys } = await fetch(`${ISSUER}/.well-known/jwks.json`).then((r) => r.json());
-    return crypto.subtle.importKey(
-      "jwk",
-      { ...keys[0], ext: true },
-      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-      false,
-      ["verify"],
-    );
-  })();
-  return cachedKey;
-}
-
-const decode = (part: string) =>
-  Uint8Array.from(
-    atob(part.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(part.length / 4) * 4, "=")),
-    (c) => c.charCodeAt(0),
-  );
-
-export async function currentUser(request: Request) {
-  const token = request.headers.get("Cookie")?.match(/(?:^|;\s*)huyab_sso=([^;]+)/)?.[1];
-  if (!token) return null;
-
-  const [header, payload, signature] = token.split(".");
-  if (!signature) return null;
-
-  const valid = await crypto.subtle.verify(
-    "RSASSA-PKCS1-v1_5",
-    await publicKey(),
-    decode(signature),
-    new TextEncoder().encode(`${header}.${payload}`),
-  );
-  if (!valid) return null;
-
-  const claims = JSON.parse(new TextDecoder().decode(decode(payload)));
-  if (claims.iss !== ISSUER) return null;
-  if (claims.exp <= Math.floor(Date.now() / 1000)) return null;
-  return claims;
-}
+```sh
+pnpm add "github:nguyenhuy158/kit#v0.1.0&path:packages/sso"
 ```
 
-Guarding a route with it:
+Add `"vars": { "SSO_ISSUER": "https://auth.huyab.click" }` to `wrangler.jsonc`;
+it is a public URL, not a secret. Hono:
 
 ```ts
-app.get("/dashboard", async (c) => {
-  const user = await currentUser(c.req.raw);
-  if (!user) {
-    const back = encodeURIComponent(new URL(c.req.url).origin + "/dashboard");
-    return c.redirect(`https://auth.huyab.click/login?redirect_uri=${back}`, 302);
-  }
-  return c.html(`<p>Hello ${user.email}</p>`);
-});
+import { requireUser, type SsoVariables } from "@huyab/sso/hono";
+
+type Env = { Bindings: { SSO_ISSUER: string }; Variables: SsoVariables };
+const app = new Hono<Env>();
+
+// 401 {"error":"unauthorized"} unless the token verifies against SSO_ISSUER.
+app.use("/api/*", requireUser());
+app.get("/api/me", (c) => c.json({ email: c.get("user").email }));
 ```
+
+Without Hono, guarding a page and sending signed-out visitors to the login:
+
+```ts
+import { getClaimsFromRequest, ssoUrl } from "@huyab/sso";
+
+const user = await getClaimsFromRequest(request, env.SSO_ISSUER); // SsoClaims | null
+if (!user) return Response.redirect(ssoUrl(env.SSO_ISSUER, "/login", request.url), 302);
+return new Response(`Hello ${user.email}`);
+```
+
+`verifySsoToken(token, issuer, { audience: "huyab.click" })` adds the optional
+`aud` check.
 
 ### Node.js / Express
 
