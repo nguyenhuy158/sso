@@ -25,16 +25,21 @@ wrangler.jsonc                 # Worker config: vars, custom domain, shared D1 b
 
 ## Build, Test, and Development Commands
 
-- `npm install`: install dependencies.
-- `npm run dev`: run the Worker locally with `wrangler dev` (needs `.dev.vars`).
-- `npm run typecheck`: `tsc --noEmit` over `src/`.
-- `npm run db:local` / `npm run db:remote`: apply `schema.sql` to the local or
+- `pnpm install`: install dependencies.
+- `pnpm dev`: run the Worker locally with `wrangler dev` (needs `.dev.vars`).
+- `pnpm check`: `tsc --noEmit` over `src/`.
+- `pnpm lint`: Biome lint + format check (`biome check .`); `pnpm format`
+  rewrites files with Biome. Format only files you touch.
+- `pnpm db:local` / `pnpm db:remote`: apply `schema.sql` to the local or
   remote D1 database.
-- `npm run keygen`: print a new RSA private key JWK.
-- `npm run deploy`: `wrangler deploy` to `auth.huyab.click`.
+- `pnpm keygen`: print a new RSA private key JWK.
+- `pnpm run deploy`: `wrangler deploy` to `auth.huyab.click`.
 
 Secrets (`JWT_PRIVATE_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) are set
 with `wrangler secret put`, never committed. See `README.md` for first-time setup.
+
+Use `pnpm` for all package commands (pinned via `packageManager`, Node version
+in `.nvmrc`). Note `pnpm deploy` is a pnpm built-in; always `pnpm run deploy`.
 
 ## Coding Style & Naming Conventions
 
@@ -56,8 +61,8 @@ Security invariants — do not weaken without a deliberate decision:
 
 ## Testing Guidelines
 
-There is no automated test suite yet. Before pushing, run `npm run typecheck`
-and exercise the flow locally with `npm run dev` (`/login` → Google →
+There is no automated test suite yet. Before pushing, run `pnpm check`
+and exercise the flow locally with `pnpm dev` (`/login` → Google →
 `/callback` → `/me`). If you add tests, use Vitest and colocate them beside the
 module (`src/jwt.test.ts`).
 

@@ -3,10 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "wrangler dev",
+    "check": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write .",
     "deploy": "wrangler deploy",
-    "typecheck": "tsc --noEmit",
     "db:local": "wrangler d1 execute db --local --file=./schema.sql",
     "db:remote": "wrangler d1 execute db --remote --file=./schema.sql",
     "keygen": "node scripts/keygen.mjs"
@@ -15,6 +21,7 @@
     "hono": "^4.6.14"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
     "@cloudflare/workers-types": "^5.20260801.1",
     "typescript": "^5.7.2",
     "wrangler": "^4.0.0"

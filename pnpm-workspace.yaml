@@ -1,0 +1,10 @@
+# esbuild/workerd (via wrangler) and sharp fetch platform binaries in postinstall.
+# pnpm 10 reads `onlyBuiltDependencies`, pnpm 11 reads `allowBuilds`; keep both.
+allowBuilds:
+  esbuild: true
+  sharp: true
+  workerd: true
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - workerd

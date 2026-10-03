@@ -1,6 +1,6 @@
 # Copy to .dev.vars for local development (wrangler dev reads it automatically).
 # In production every value below is a secret: wrangler secret put <NAME>
-# Generate the key with: npm run keygen
+# Generate the key with: pnpm keygen
 JWT_PRIVATE_KEY={"kty":"RSA",...}
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-client-secret

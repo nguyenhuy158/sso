@@ -27,12 +27,12 @@ as an open redirect.
 ## Setup
 
 ```sh
-npm install
-npm run db:remote                                  # sso_ tables in the shared D1
-npm run keygen | npx wrangler secret put JWT_PRIVATE_KEY
-npx wrangler secret put GOOGLE_CLIENT_ID
-npx wrangler secret put GOOGLE_CLIENT_SECRET
-npm run deploy
+pnpm install
+pnpm db:remote                                  # sso_ tables in the shared D1
+pnpm keygen | pnpm wrangler secret put JWT_PRIVATE_KEY
+pnpm wrangler secret put GOOGLE_CLIENT_ID
+pnpm wrangler secret put GOOGLE_CLIENT_SECRET
+pnpm run deploy
 ```
 
 The Google OAuth client needs exactly one authorized redirect URI, added once:
@@ -110,9 +110,9 @@ request would add a round trip to each page load.
 ## Local development
 
 ```sh
-cp .dev.vars.example .dev.vars      # then: npm run keygen, paste into JWT_PRIVATE_KEY
-npm run db:local
-npm run dev
+cp .dev.vars.example .dev.vars      # then: pnpm keygen, paste into JWT_PRIVATE_KEY
+pnpm db:local
+pnpm dev
 ```
 
 ## Trade-off worth knowing
