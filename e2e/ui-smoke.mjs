@@ -6,15 +6,11 @@
 // Environment:
 // - E2E_BASE_URL: default http://127.0.0.1:8787
 // - E2E_JWT_PRIVATE_KEY: private JWK the local Worker signs with (set by run.mjs)
-// - PLAYWRIGHT_CHROMIUM_PATH: see e2e/chromium.mjs
+// - PLAYWRIGHT_CHROMIUM_PATH: see findChromium in @huyab/e2e
 import { webcrypto } from "node:crypto";
+import { BASE, findChromium } from "@huyab/e2e";
 import { chromium } from "playwright-core";
-import { findChromium } from "./chromium.mjs";
 
-const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:8787").replace(
-  /\/$/,
-  "",
-);
 const WAIT = { timeout: 15000 };
 const SESSION_COOKIE = "huyab_sso";
 const KEY_ID = "sso-1";

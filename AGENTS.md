@@ -70,8 +70,9 @@ There are no unit tests yet. Before pushing, run `pnpm check`, `pnpm build`
 and `pnpm e2e`. If you add unit tests, use Vitest and colocate them beside the
 module (`src/jwt.test.ts`).
 
-E2E lives in `e2e/` (playwright-core; Chromium from `PLAYWRIGHT_CHROMIUM_PATH`,
-the Playwright cache or a system Chrome, see `e2e/chromium.mjs`):
+E2E lives in `e2e/` (playwright-core; server lifecycle and Chromium lookup from
+`@huyab/e2e`, Chromium from `PLAYWRIGHT_CHROMIUM_PATH`, the Playwright cache or
+a system Chrome):
 
 - `pnpm e2e` (`e2e/run.mjs`) mints a throwaway signing key, starts
   `wrangler dev` with it via `--env-file` (your `.dev.vars` is not used), then
