@@ -12,10 +12,11 @@ src/
   index.ts                     # Hono app: /login, /callback, /logout, /me, JWKS, landing page
   env.ts                       # Env bindings, cookie names, redirect allow-list, session TTL
   google.ts                    # Google OAuth URL + code exchange
-  jwt.ts                       # RS256 sign/verify, public JWKS export
+  jwt.ts                       # RS256 sign/verify, base64url JWT decoding, public JWKS export
   users.ts                     # sso_users upsert (D1)
   page.ts                      # Server-rendered landing page (HTML string, no framework)
 scripts/keygen.mjs             # Generate the RSA private key JWK for JWT_PRIVATE_KEY
+e2e/                           # E2E smoke (playwright-core): run.mjs, readonly-smoke.mjs, ui-smoke.mjs
 schema.sql                     # D1 schema; every table is prefixed sso_ (shared DB)
 docs/INTEGRATION.md            # Guide for relying apps (Workers, Express, FastAPI)
 scaffold/cloudflare-worker/    # Copy-paste consumer files for other Workers (plain JS)
@@ -35,6 +36,8 @@ wrangler.jsonc                 # Worker config: vars, custom domain, shared D1 b
 - `pnpm db:local` / `pnpm db:remote`: apply `schema.sql` to the local or
   remote D1 database.
 - `pnpm keygen`: print a new RSA private key JWK.
+- `pnpm e2e`: E2E smoke against local `wrangler dev`; `pnpm e2e:prod`: the
+  read-only part against `https://auth.huyab.click`.
 - `pnpm run deploy`: `wrangler deploy` to `auth.huyab.click`.
 
 Secrets (`JWT_PRIVATE_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) are set
@@ -63,10 +66,25 @@ Security invariants — do not weaken without a deliberate decision:
 
 ## Testing Guidelines
 
-There is no automated test suite yet. Before pushing, run `pnpm check`
-and exercise the flow locally with `pnpm dev` (`/login` → Google →
-`/callback` → `/me`). If you add tests, use Vitest and colocate them beside the
+There are no unit tests yet. Before pushing, run `pnpm check`, `pnpm build`
+and `pnpm e2e`. If you add unit tests, use Vitest and colocate them beside the
 module (`src/jwt.test.ts`).
+
+E2E lives in `e2e/` (playwright-core; Chromium from `PLAYWRIGHT_CHROMIUM_PATH`,
+the Playwright cache or a system Chrome, see `e2e/chromium.mjs`):
+
+- `pnpm e2e` (`e2e/run.mjs`) mints a throwaway signing key, starts
+  `wrangler dev` with it via `--env-file` (your `.dev.vars` is not used), then
+  runs `readonly-smoke.mjs` and `ui-smoke.mjs`. The second one signs session
+  tokens with that key to cover `/me`, the signed-in page, tampered/expired
+  tokens and `/logout`. CI runs this as the `e2e` job.
+- `pnpm e2e:prod` runs only `readonly-smoke.mjs` against production. It must
+  stay GET-only: `/`, `/.well-known/jwks.json`, `/me`, `/login` (redirect not
+  followed), `/callback` with a forged state (400) and a 404 path. Never add
+  sign-in, token minting or anything that writes to it.
+
+The real Google round trip (`/login` → Google → `/callback`) is still manual
+with `pnpm dev`.
 
 ## Commit & Pull Request Guidelines
 

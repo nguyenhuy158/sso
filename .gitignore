@@ -18,6 +18,9 @@ coverage/
 # Logs
 *.log
 
+# E2E failure screenshot
+e2e-failure.png
+
 # OS and editor files
 .DS_Store
 .idea/
