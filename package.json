@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "wrangler dev",
+    "build": "wrangler deploy --dry-run --outdir dist",
     "check": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome format --write .",

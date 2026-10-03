@@ -27,6 +27,8 @@ wrangler.jsonc                 # Worker config: vars, custom domain, shared D1 b
 
 - `pnpm install`: install dependencies.
 - `pnpm dev`: run the Worker locally with `wrangler dev` (needs `.dev.vars`).
+- `pnpm build`: bundle the Worker into `dist/` without deploying
+  (`wrangler deploy --dry-run`); catches bundling errors the typecheck misses.
 - `pnpm check`: `tsc --noEmit` over `src/`.
 - `pnpm lint`: Biome lint + format check (`biome check .`); `pnpm format`
   rewrites files with Biome. Format only files you touch.
