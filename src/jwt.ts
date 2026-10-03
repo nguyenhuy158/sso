@@ -25,6 +25,18 @@ function base64UrlEncode(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
+function base64UrlDecode(input: string): Uint8Array {
+  const base64 = input.replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")), (c) =>
+    c.charCodeAt(0),
+  );
+}
+
+/** Parses the JSON carried in one base64url segment of a JWT; throws when malformed. */
+export function decodeJwtSegment<T>(segment: string): T {
+  return JSON.parse(new TextDecoder().decode(base64UrlDecode(segment))) as T;
+}
+
 let cachedKey: Promise<CryptoKey> | null = null;
 let cachedJwk: JsonWebKey | null = null;
 
@@ -83,10 +95,7 @@ export async function verifySession(env: Env, token: string): Promise<SessionCla
     ["verify"],
   );
 
-  const signature = Uint8Array.from(
-    atob(parts[2].replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(parts[2].length / 4) * 4, "=")),
-    (c) => c.charCodeAt(0),
-  );
+  const signature = base64UrlDecode(parts[2]);
   const valid = await crypto.subtle.verify(
     "RSASSA-PKCS1-v1_5",
     key,
@@ -96,14 +105,7 @@ export async function verifySession(env: Env, token: string): Promise<SessionCla
   if (!valid) return null;
 
   try {
-    const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const claims = JSON.parse(
-      new TextDecoder().decode(
-        Uint8Array.from(atob(payload.padEnd(Math.ceil(payload.length / 4) * 4, "=")), (c) =>
-          c.charCodeAt(0),
-        ),
-      ),
-    ) as SessionClaims;
+    const claims = decodeJwtSegment<SessionClaims>(parts[1]);
     return claims.exp > Math.floor(Date.now() / 1000) ? claims : null;
   } catch {
     return null;

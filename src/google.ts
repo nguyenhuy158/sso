@@ -1,4 +1,5 @@
 import { required, type Env } from "./env";
+import { decodeJwtSegment } from "./jwt";
 
 const AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
@@ -49,14 +50,13 @@ export async function exchangeCode(
   // transport authenticates it and its signature need not be re-checked here.
   const payload = token.id_token.split(".")[1];
   if (!payload) throw new Error("Malformed id_token");
-  const normalised = payload.replace(/-/g, "+").replace(/_/g, "/");
-  const claims = JSON.parse(
-    new TextDecoder().decode(
-      Uint8Array.from(atob(normalised.padEnd(Math.ceil(normalised.length / 4) * 4, "=")), (c) =>
-        c.charCodeAt(0),
-      ),
-    ),
-  ) as { sub?: string; email?: string; email_verified?: boolean; name?: string; picture?: string };
+  const claims = decodeJwtSegment<{
+    sub?: string;
+    email?: string;
+    email_verified?: boolean;
+    name?: string;
+    picture?: string;
+  }>(payload);
 
   if (!claims.sub) throw new Error("id_token has no subject");
   return {
