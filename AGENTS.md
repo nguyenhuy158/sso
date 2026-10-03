@@ -23,6 +23,21 @@ wrangler.jsonc                 # Worker config: vars, custom domain, shared D1 b
 .dev.vars.example              # Template for local secrets
 ```
 
+## Ecosystem
+
+How this repo fits with the others:
+[kit/docs/ECOSYSTEM.md](https://github.com/nguyenhuy158/kit/blob/main/docs/ECOSYSTEM.md).
+
+- Kit packages used: `@huyab/config` (Biome, tsconfig), `@huyab/e2e` (E2E
+  server lifecycle, Chromium lookup) and the reusable `check.yml` CI. Not
+  `@huyab/sso`: this Worker is the issuer and verifies its own tokens with the
+  public half of its private key, without fetching the JWKS. Relying apps use
+  `@huyab/sso`.
+- Talks to: Google OAuth and the shared D1 `db` (`sso_users`). Relied on by
+  every app that reads the `huyab_sso` cookie + JWKS: ai-english, chia-keo,
+  notes, monitor, share, cardstat, hooks, picaku-mul, mailer, and the iOS
+  clients (chia-keo-ios, notes-ios, monitor-ios) through WebView login.
+
 ## Build, Test, and Development Commands
 
 - `pnpm install`: install dependencies.
