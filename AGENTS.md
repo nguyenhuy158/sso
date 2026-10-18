@@ -17,7 +17,7 @@ src/
   page.ts                      # Server-rendered landing page (HTML string, no framework)
 scripts/keygen.mjs             # Generate the RSA private key JWK for JWT_PRIVATE_KEY
 e2e/                           # E2E smoke (playwright-core): run.mjs, readonly-smoke.mjs, ui-smoke.mjs
-schema.sql                     # D1 schema; every table is prefixed sso_ (shared DB)
+migrations/                    # D1 migrations; every table is prefixed sso_ (shared DB), history in sso_migrations
 docs/INTEGRATION.md            # Guide for relying apps (Workers, Express, FastAPI)
 wrangler.jsonc                 # Worker config: vars, custom domain, shared D1 binding
 .dev.vars.example              # Template for local secrets
@@ -47,7 +47,7 @@ How this repo fits with the others:
 - `pnpm check`: `tsc --noEmit` over `src/`.
 - `pnpm lint`: Biome lint + format check (`biome check .`); `pnpm format`
   rewrites files with Biome. Format only files you touch.
-- `pnpm db:local` / `pnpm db:remote`: apply `schema.sql` to the local or
+- `pnpm db:local` / `pnpm db:remote`: apply pending `migrations/` to the local or
   remote D1 database.
 - `pnpm keygen`: print a new RSA private key JWK.
 - `pnpm e2e`: E2E smoke against local `wrangler dev`; `pnpm e2e:prod`: the
