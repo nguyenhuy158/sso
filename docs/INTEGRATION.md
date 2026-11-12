@@ -1,7 +1,7 @@
-# Integrating an app with huyab.click SSO
+# Integrating an app with huyab.cfd SSO
 
 Everything an app needs in order to let people sign in once and stay signed in
-across every `*.huyab.click` service.
+across every `*.huyab.cfd` service.
 
 - **You never touch the Google console.** This service owns the only OAuth client.
 - **You never hold a secret.** Verification uses a public key.
@@ -13,16 +13,16 @@ across every `*.huyab.click` service.
 ## 1. How it works
 
 ```
-visitor                     your app                    auth.huyab.click        Google
+visitor                     your app                    auth.huyab.cfd        Google
    |  GET /dashboard            |                              |                  |
    |--------------------------->|                              |                  |
    |   302 to auth /login       |                              |                  |
    |<---------------------------|                              |                  |
-   |  GET /login?redirect_uri=https://yourapp.huyab.click/     |                  |
+   |  GET /login?redirect_uri=https://yourapp.huyab.cfd/     |                  |
    |---------------------------------------------------------->|                  |
    |                            |     OAuth authorization code flow               |
    |                            |                              |<---------------->|
-   |   302 back to your app, Set-Cookie huyab_sso=<JWT> for .huyab.click          |
+   |   302 back to your app, Set-Cookie huyab_sso=<JWT> for .huyab.cfd          |
    |<----------------------------------------------------------|                  |
    |  GET /dashboard  (cookie now sent automatically)           |                  |
    |--------------------------->|                              |                  |
@@ -30,19 +30,19 @@ visitor                     your app                    auth.huyab.click        
    |                            | (fetched once, then cached)  |                  |
 ```
 
-The cookie is set with `Domain=.huyab.click`, so the browser sends it to every
+The cookie is set with `Domain=.huyab.cfd`, so the browser sends it to every
 subdomain without a second login.
 
 ## 2. Endpoints you use
 
 | Endpoint | When |
 | --- | --- |
-| `GET https://auth.huyab.click/login?redirect_uri=<your url>` | send visitors here to sign in |
-| `GET https://auth.huyab.click/logout?redirect_uri=<your url>` | sign out of every app at once |
-| `GET https://auth.huyab.click/.well-known/jwks.json` | public keys, for verifying the cookie |
-| `GET https://auth.huyab.click/me` | current session as JSON, if you would rather not verify locally |
+| `GET https://auth.huyab.cfd/login?redirect_uri=<your url>` | send visitors here to sign in |
+| `GET https://auth.huyab.cfd/logout?redirect_uri=<your url>` | sign out of every app at once |
+| `GET https://auth.huyab.cfd/.well-known/jwks.json` | public keys, for verifying the cookie |
+| `GET https://auth.huyab.cfd/me` | current session as JSON, if you would rather not verify locally |
 
-`redirect_uri` must be an `https` URL whose host is inside `huyab.click`;
+`redirect_uri` must be an `https` URL whose host is inside `huyab.cfd`;
 anything else is ignored and the visitor lands on the SSO page instead.
 
 ## 3. The cookie
@@ -52,9 +52,9 @@ browser JavaScript cannot, by design.
 
 ```json
 {
-  "iss": "https://auth.huyab.click",
+  "iss": "https://auth.huyab.cfd",
   "sub": "7",
-  "aud": "huyab.click",
+  "aud": "huyab.cfd",
   "email": "someone@gmail.com",
   "name": "Someone",
   "picture": "https://lh3.googleusercontent.com/...",
@@ -73,7 +73,7 @@ Sessions last 24 hours.
 Whatever the language, the checks are the same four:
 
 1. the RS256 signature matches the public key from the JWKS,
-2. `iss` equals `https://auth.huyab.click`,
+2. `iss` equals `https://auth.huyab.cfd`,
 3. `exp` is in the future,
 4. cache the imported key — refetching JWKS per request adds a round trip to
    every page load.
@@ -89,7 +89,7 @@ four checks (keys cached per isolate, failed fetches not cached) and reads the
 pnpm add "github:nguyenhuy158/kit#v0.1.0&path:packages/sso"
 ```
 
-Add `"vars": { "SSO_ISSUER": "https://auth.huyab.click" }` to `wrangler.jsonc`;
+Add `"vars": { "SSO_ISSUER": "https://auth.huyab.cfd" }` to `wrangler.jsonc`;
 it is a public URL, not a secret. Hono:
 
 ```ts
@@ -113,7 +113,7 @@ if (!user) return Response.redirect(ssoUrl(env.SSO_ISSUER, "/login", request.url
 return new Response(`Hello ${user.email}`);
 ```
 
-`verifySsoToken(token, issuer, { audience: "huyab.click" })` adds the optional
+`verifySsoToken(token, issuer, { audience: "huyab.cfd" })` adds the optional
 `aud` check.
 
 ### Node.js / Express
@@ -121,7 +121,7 @@ return new Response(`Hello ${user.email}`);
 ```js
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
-const ISSUER = "https://auth.huyab.click";
+const ISSUER = "https://auth.huyab.cfd";
 const jwks = createRemoteJWKSet(new URL(`${ISSUER}/.well-known/jwks.json`)); // caches internally
 
 export async function requireUser(req, res, next) {
@@ -147,7 +147,7 @@ import time
 from fastapi import Cookie, HTTPException
 from jwt import PyJWKClient, decode as jwt_decode  # pip install pyjwt[crypto]
 
-ISSUER = "https://auth.huyab.click"
+ISSUER = "https://auth.huyab.cfd"
 jwks_client = PyJWKClient(f"{ISSUER}/.well-known/jwks.json")  # caches internally
 
 def current_user(huyab_sso: str | None = Cookie(default=None)) -> dict:
@@ -155,7 +155,7 @@ def current_user(huyab_sso: str | None = Cookie(default=None)) -> dict:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
         key = jwks_client.get_signing_key_from_jwt(huyab_sso).key
-        claims = jwt_decode(huyab_sso, key, algorithms=["RS256"], issuer=ISSUER, audience="huyab.click")
+        claims = jwt_decode(huyab_sso, key, algorithms=["RS256"], issuer=ISSUER, audience="huyab.cfd")
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid session")
     if claims["exp"] <= time.time():
@@ -169,7 +169,7 @@ If verification is more than you want to write, ask the service instead. Costs a
 round trip per check, so cache the answer for the request at least.
 
 ```js
-const res = await fetch("https://auth.huyab.click/me", {
+const res = await fetch("https://auth.huyab.cfd/me", {
   headers: { Cookie: request.headers.get("Cookie") ?? "" },
 });
 const user = res.ok ? (await res.json()).user : null;
@@ -184,7 +184,7 @@ calls are blocked on purpose.
 Clear your own session, then hand off:
 
 ```
-https://auth.huyab.click/logout?redirect_uri=https://yourapp.huyab.click/
+https://auth.huyab.cfd/logout?redirect_uri=https://yourapp.huyab.cfd/
 ```
 
 Deleting only your app's cookie is not enough. The SSO cookie belongs to the
@@ -213,14 +213,14 @@ Worked example: `webhook-tester` does exactly this in
 
 ## 7. Things that will bite you
 
-- **Local development.** The cookie is `Secure` and scoped to `.huyab.click`, so
+- **Local development.** The cookie is `Secure` and scoped to `.huyab.cfd`, so
   it never reaches `localhost`. Either point a dev subdomain at your local
   machine, or mint test tokens with the dev key, as
   `webhook-tester` does in its local test script.
 - **Public endpoints.** Guard only what needs an account. Webhook receivers,
   health checks and callbacks must stay open, otherwise the systems calling them
   get a login page.
-- **One cookie, one blast radius.** A bug in any `*.huyab.click` app can act as
+- **One cookie, one blast radius.** A bug in any `*.huyab.cfd` app can act as
   the signed-in visitor against the others. Keep untrusted or experimental apps
   on a different domain.
 - **Clock skew.** The `exp` check is exact. If your host's clock drifts, allow a

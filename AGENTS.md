@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-Single sign-on for every app on `*.huyab.click`, served at `auth.huyab.click`.
+Single sign-on for every app on `*.huyab.cfd`, served at `auth.huyab.cfd`.
 One Cloudflare Worker (Hono + TypeScript) runs the Google OAuth flow, stores
 users in the shared D1 database and issues an RS256 JWT in the domain-wide
 `huyab_sso` cookie. Relying apps verify it against `/.well-known/jwks.json`.
@@ -51,8 +51,8 @@ How this repo fits with the others:
   remote D1 database.
 - `pnpm keygen`: print a new RSA private key JWK.
 - `pnpm e2e`: E2E smoke against local `wrangler dev`; `pnpm e2e:prod`: the
-  read-only part against `https://auth.huyab.click`.
-- `pnpm run deploy`: `wrangler deploy` to `auth.huyab.click`.
+  read-only part against `https://auth.huyab.cfd`.
+- `pnpm run deploy`: `wrangler deploy` to `auth.huyab.cfd`.
 
 Secrets (`JWT_PRIVATE_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) are set
 with `wrangler secret put`, never committed. See `README.md` for first-time setup.
@@ -107,7 +107,7 @@ Use Conventional Commits with an emoji prefix, for example
 `✨ feat: add /me picture field` or `🐛 fix: reject redirect to bare apex`.
 Pull requests should include a short summary, typecheck results, a linked issue
 if available, and note any change to cookie, token or redirect behavior because
-every `*.huyab.click` app depends on it.
+every `*.huyab.cfd` app depends on it.
 
 ## Agent-Specific Instructions
 

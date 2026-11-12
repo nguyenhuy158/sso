@@ -1,9 +1,9 @@
-# huyab.click SSO
+# huyab.cfd SSO
 
-One Google OAuth client for every app on `*.huyab.click`. A visitor signs in once
-at `auth.huyab.click`; every other app reads the resulting cookie.
+One Google OAuth client for every app on `*.huyab.cfd`. A visitor signs in once
+at `auth.huyab.cfd`; every other app reads the resulting cookie.
 
-- **Session cookie** `huyab_sso`, set with `Domain=.huyab.click`, so every
+- **Session cookie** `huyab_sso`, set with `Domain=.huyab.cfd`, so every
   subdomain receives it. HttpOnly, Secure, SameSite=Lax.
 - **Token** RS256 JWT. The private key stays in this Worker; apps verify with the
   public key at `/.well-known/jwks.json`. No app can mint a token for another app,
@@ -20,7 +20,7 @@ at `auth.huyab.click`; every other app reads the resulting cookie.
 | `GET /me` | current session as JSON, or 401 |
 | `GET /.well-known/jwks.json` | public keys for verification |
 
-`redirect_uri` is only honoured for `https` URLs inside `huyab.click`; anything
+`redirect_uri` is only honoured for `https` URLs inside `huyab.cfd`; anything
 else falls back to this service's own page, so the login endpoint cannot be used
 as an open redirect.
 
@@ -38,7 +38,7 @@ pnpm run deploy
 The Google OAuth client needs exactly one authorized redirect URI, added once:
 
 ```
-https://auth.huyab.click/callback
+https://auth.huyab.cfd/callback
 ```
 
 That is the whole point of this service: new apps never touch the Google console
@@ -52,7 +52,7 @@ Full integration guide, with examples for Workers, Node/Express and FastAPI:
 Send visitors who need an account to the login endpoint:
 
 ```
-https://auth.huyab.click/login?redirect_uri=https://yourapp.huyab.click/
+https://auth.huyab.cfd/login?redirect_uri=https://yourapp.huyab.cfd/
 ```
 
 Then verify the cookie. JavaScript/TypeScript apps use
@@ -86,4 +86,4 @@ pnpm dev
 
 One domain-wide cookie means one compromised app can leak the session for all of
 them. The cookie is HttpOnly, so an XSS cannot read it directly, but a bug in any
-`*.huyab.click` app can still act as the signed-in user against the others.
+`*.huyab.cfd` app can still act as the signed-in user against the others.

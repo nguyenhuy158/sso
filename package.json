@@ -18,7 +18,7 @@
     "db:remote": "wrangler d1 migrations apply db --remote",
     "keygen": "node scripts/keygen.mjs",
     "e2e": "node e2e/run.mjs",
-    "e2e:prod": "E2E_BASE_URL=https://auth.huyab.click node e2e/readonly-smoke.mjs"
+    "e2e:prod": "E2E_BASE_URL=https://auth.huyab.cfd node e2e/readonly-smoke.mjs"
   },
   "dependencies": {
     "hono": "^4.6.14"
