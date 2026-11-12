@@ -14,7 +14,7 @@ import { chromium } from "playwright-core";
 const WAIT = { timeout: 15000 };
 const SESSION_COOKIE = "huyab_sso";
 const KEY_ID = "sso-1";
-const EMAIL = "e2e@huyab.click";
+const EMAIL = "e2e@huyab.cfd";
 
 if (!process.env.E2E_JWT_PRIVATE_KEY) {
   console.error("E2E_JWT_PRIVATE_KEY is not set; run `pnpm e2e` instead.");
@@ -43,9 +43,9 @@ const signingKey = await webcrypto.subtle.importKey(
 async function mintToken(overrides = {}) {
   const now = Math.floor(Date.now() / 1000);
   const claims = {
-    iss: "https://auth.huyab.click",
+    iss: "https://auth.huyab.cfd",
     sub: "42",
-    aud: "huyab.click",
+    aud: "huyab.cfd",
     email: EMAIL,
     name: "E2E User",
     picture: null,
@@ -107,7 +107,7 @@ try {
   // 3. A tampered payload keeps the old signature and must be rejected.
   const [header, , signature] = token.split(".");
   const forgedPayload = base64Url(
-    JSON.stringify({ sub: "1", email: "admin@huyab.click", exp: 4e9 }),
+    JSON.stringify({ sub: "1", email: "admin@huyab.cfd", exp: 4e9 }),
   );
   if ((await me(`${header}.${forgedPayload}.${signature}`)).status !== 401) {
     throw new Error("/me accepted a token with a tampered payload");
@@ -134,14 +134,14 @@ try {
     throw new Error(`/logout: ${logout.status}, Set-Cookie ${cleared}`);
   }
   const back = await fetch(
-    `${BASE}/logout?redirect_uri=https%3A%2F%2Fe2e.huyab.click%2F`,
+    `${BASE}/logout?redirect_uri=https%3A%2F%2Fe2e.huyab.cfd%2F`,
     {
       redirect: "manual",
     },
   );
   if (
     back.status !== 302 ||
-    back.headers.get("location") !== "https://e2e.huyab.click/"
+    back.headers.get("location") !== "https://e2e.huyab.cfd/"
   ) {
     throw new Error(
       `/logout with allowed redirect: ${back.status} ${back.headers.get("location")}`,

@@ -1,6 +1,6 @@
 // Read-only smoke: only GETs public pages and endpoints, never follows the
 // Google redirect, never signs anyone in and writes nothing. Safe against
-// production: `pnpm e2e:prod` (auth.huyab.click). `pnpm e2e` runs it first
+// production: `pnpm e2e:prod` (auth.huyab.cfd). `pnpm e2e` runs it first
 // against local `wrangler dev`, so dev and prod share these checks.
 //
 // Environment:
@@ -10,7 +10,7 @@ import { BASE, findChromium } from "@huyab/e2e";
 import { chromium } from "playwright-core";
 
 const WAIT = { timeout: 15000 };
-const ALLOWED_RETURN = "https://e2e.huyab.click/after-login";
+const ALLOWED_RETURN = "https://e2e.huyab.cfd/after-login";
 const FOREIGN_RETURN = "https://evil.example/steal";
 
 let passed = 0;
@@ -76,7 +76,7 @@ try {
   const landing = await page.goto(`${BASE}/`);
   if (landing?.status() !== 200)
     throw new Error(`GET / returned ${landing?.status()}`);
-  await page.waitForSelector("h1:has-text('huyab.click SSO')", WAIT);
+  await page.waitForSelector("h1:has-text('huyab.cfd SSO')", WAIT);
   await page.waitForSelector(
     "a.btn[href='/login']:has-text('Sign in with Google')",
     WAIT,

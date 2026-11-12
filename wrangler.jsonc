@@ -8,14 +8,14 @@
     "enabled": true
   },
   "vars": {
-    "ISSUER": "https://auth.huyab.click",
-    "COOKIE_DOMAIN": ".huyab.click",
+    "ISSUER": "https://auth.huyab.cfd",
+    "COOKIE_DOMAIN": ".huyab.cfd",
     // Only hosts inside this domain may be redirected back to after login.
-    "ALLOWED_REDIRECT_SUFFIX": ".huyab.click",
+    "ALLOWED_REDIRECT_SUFFIX": ".huyab.cfd",
     "SESSION_TTL_SECONDS": "86400"
   },
   "workers_dev": false,
-  "routes": [{ "pattern": "auth.huyab.click", "custom_domain": true }],
+  "routes": [{ "pattern": "auth.huyab.cfd", "custom_domain": true }],
   "d1_databases": [
     {
       "binding": "DB",

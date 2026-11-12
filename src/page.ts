@@ -16,13 +16,13 @@ export function landingPage(params: { issuer: string; claims: SessionClaims | nu
     ? `<p class="who">Signed in as <strong>${esc(claims.email ?? claims.name ?? claims.sub)}</strong></p>
        <p class="muted">Session expires ${esc(new Date(claims.exp * 1000).toISOString())}</p>
        <a class="btn secondary" href="/logout">Sign out of every app</a>`
-    : `<p class="muted">Single sign-on for every app on huyab.click.</p>
+    : `<p class="muted">Single sign-on for every app on huyab.cfd.</p>
        <a class="btn" href="/login">Sign in with Google</a>`;
 
   return `<!DOCTYPE html>
 <html>
 <head>
-    <title>huyab.click SSO</title>
+    <title>huyab.cfd SSO</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -41,7 +41,7 @@ export function landingPage(params: { issuer: string; claims: SessionClaims | nu
 </head>
 <body>
     <div class="card">
-        <h1>huyab.click SSO</h1>
+        <h1>huyab.cfd SSO</h1>
         ${body}
         <div class="hint">
             Apps start a login with<br>

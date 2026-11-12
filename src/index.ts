@@ -75,7 +75,7 @@ app.get("/callback", async (c) => {
     exp: now + ttl,
   });
 
-  // Domain-wide cookie: every *.huyab.click app receives it without another login.
+  // Domain-wide cookie: every *.huyab.cfd app receives it without another login.
   setCookie(c, SESSION_COOKIE, token, {
     domain: c.env.COOKIE_DOMAIN,
     httpOnly: true,
