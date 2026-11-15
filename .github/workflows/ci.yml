@@ -14,7 +14,7 @@ jobs:
   # without credentials. `pnpm e2e` mints a throwaway signing key, starts
   # wrangler dev with it and runs both smoke suites; no secrets needed.
   check:
-    uses: nguyenhuy158/kit/.github/workflows/check.yml@v0.1.0
+    uses: nguyenhuy158/kit/.github/workflows/check.yml@v0.2.0
     with:
       run-build: true
       run-e2e: true
