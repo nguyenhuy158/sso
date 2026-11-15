@@ -8,16 +8,17 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "wrangler dev",
-    "build": "wrangler deploy --dry-run --outdir dist",
-    "check": "tsc --noEmit",
+    "dev": "node scripts/build-info.mjs && wrangler dev",
+    "build": "node scripts/build-info.mjs && wrangler deploy --dry-run --outdir dist",
+    "check": "node scripts/build-info.mjs && tsc --noEmit",
     "lint": "biome check .",
+    "test": "node scripts/build-info.mjs && vitest run",
     "format": "biome format --write .",
-    "deploy": "wrangler deploy",
+    "deploy": "node scripts/build-info.mjs && wrangler deploy",
     "db:local": "wrangler d1 migrations apply db --local",
     "db:remote": "wrangler d1 migrations apply db --remote",
     "keygen": "node scripts/keygen.mjs",
-    "e2e": "node e2e/run.mjs",
+    "e2e": "node scripts/build-info.mjs && node e2e/run.mjs",
     "e2e:prod": "E2E_BASE_URL=https://auth.huyab.cfd node e2e/readonly-smoke.mjs"
   },
   "dependencies": {
@@ -30,6 +31,7 @@
     "@huyab/e2e": "github:nguyenhuy158/kit#v0.2.0&path:packages/e2e",
     "playwright-core": "^1.63.0",
     "typescript": "^5.7.2",
+    "vitest": "^4.1.9",
     "wrangler": "^4.0.0"
   }
 }
