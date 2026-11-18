@@ -268,22 +268,25 @@ try {
   ok("a revoked key cannot be shown");
 
   // 7. The admin panel: only the admin sees it, and it creates, copies and revokes.
-  const strangerPage = await (
-    await fetch(`${BASE}/`, { headers: asCookie(stranger) })
-  ).text();
-  if (strangerPage.includes("key-form"))
-    throw new Error("the key panel was shown to a non-admin");
+  const strangerMe = await (
+    await fetch(`${BASE}/me`, { headers: asCookie(stranger) })
+  ).json();
+  if (strangerMe.isAdmin !== false)
+    throw new Error("/me marks a non-admin as admin");
   await page.goto(`${BASE}/`);
-  await page.waitForSelector("#key-form", WAIT);
-  await page.fill("#key-label", "ui key");
-  await page.click("#key-form button[type=submit]");
+  await page.waitForSelector("input[aria-label='Key name']", WAIT);
+  await page.fill("input[aria-label='Key name']", "ui key");
+  await page.click("form button[type=submit]");
   await page.waitForFunction(
-    () => document.querySelector("#key-new-value")?.value.startsWith("hsk_"),
+    () =>
+      document
+        .querySelector("input[aria-label='New key']")
+        ?.value.startsWith("hsk_"),
     null,
     WAIT,
   );
   await page.waitForSelector(
-    ".row:has-text('ui key') button:has-text('Copy')",
+    "li:has-text('ui key') button:has-text('Copy')",
     WAIT,
   );
   const fits = await page.evaluate(
@@ -291,8 +294,8 @@ try {
   );
   if (!fits) throw new Error("the admin page scrolls the viewport");
   page.once("dialog", (dialog) => dialog.accept());
-  await page.click(".row:has-text('ui key') button:has-text('Revoke')");
-  await page.waitForSelector(".row.off:has-text('ui key')", WAIT);
+  await page.click("li:has-text('ui key') button:has-text('Revoke')");
+  await page.waitForSelector("li:has-text('ui key'):has-text('revoked')", WAIT);
   ok("admin panel creates, lists and revokes a key within one viewport");
 } catch (error) {
   failed += 1;

@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "node scripts/build-info.mjs && wrangler dev",
     "build": "node scripts/build-info.mjs && wrangler deploy --dry-run --outdir dist",
-    "check": "node scripts/build-info.mjs && tsc --noEmit",
+    "check": "node scripts/build-info.mjs && tsc --noEmit && tsc --noEmit -p web",
     "lint": "biome check .",
     "test": "node scripts/build-info.mjs && vitest run",
     "format": "biome format --write .",
@@ -19,18 +19,27 @@
     "db:remote": "wrangler d1 migrations apply db --remote",
     "keygen": "node scripts/keygen.mjs",
     "e2e": "node scripts/build-info.mjs && node e2e/run.mjs",
-    "e2e:prod": "E2E_BASE_URL=https://auth.huyab.cfd node e2e/readonly-smoke.mjs"
+    "e2e:prod": "E2E_BASE_URL=https://auth.huyab.cfd node e2e/readonly-smoke.mjs",
+    "dev:web": "vite"
   },
   "dependencies": {
-    "hono": "^4.6.14"
+    "hono": "^4.6.14",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
     "@cloudflare/workers-types": "^5.20260801.1",
     "@huyab/config": "github:nguyenhuy158/kit#v0.2.0&path:packages/config",
     "@huyab/e2e": "github:nguyenhuy158/kit#v0.2.0&path:packages/e2e",
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
     "playwright-core": "^1.63.0",
+    "tailwindcss": "^4.3.5",
     "typescript": "^5.7.2",
+    "vite": "^7.3.8",
     "vitest": "^4.1.9",
     "wrangler": "^4.0.0"
   }

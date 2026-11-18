@@ -2,9 +2,10 @@ import type { SessionClaims } from "./jwt";
 import { seal } from "./secret-box";
 
 export const KEY_PREFIX = "hsk_";
-export const DEFAULT_KEY_DAYS = 90;
-export const MAX_KEY_DAYS = 90;
-export const MAX_LABEL_LENGTH = 80;
+
+import { DEFAULT_KEY_DAYS, MAX_KEY_DAYS } from "./key-limits";
+
+export { DEFAULT_KEY_DAYS, MAX_KEY_DAYS, MAX_LABEL_LENGTH } from "./key-limits";
 
 const SECRET_BYTES = 32;
 const ID_BYTES = 4;

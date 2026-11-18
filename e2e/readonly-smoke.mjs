@@ -78,7 +78,7 @@ try {
     throw new Error(`GET / returned ${landing?.status()}`);
   await page.waitForSelector("h1:has-text('huyab.cfd SSO')", WAIT);
   await page.waitForSelector(
-    "a.btn[href='/login']:has-text('Sign in with Google')",
+    "a[href='/login']:has-text('Sign in with Google')",
     WAIT,
   );
   if (pageErrors.length > 0)
