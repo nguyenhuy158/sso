@@ -9,6 +9,7 @@ import {
   redeemAuthKey,
   revokeAuthKey,
 } from "./auth-keys";
+import { BUILD_INFO } from "./build-info";
 import {
   AUTH_KEY_TOKEN_TTL_SECONDS,
   type Env,
@@ -31,6 +32,24 @@ import { open } from "./secret-box";
 import { type SsoUser, upsertUser } from "./users";
 
 const app = new Hono<{ Bindings: Env }>();
+
+const VERSION_PATH = "/api/version";
+const HEALTH_PATH = "/api/health";
+const HEALTH_PROBE = "SELECT 1";
+const HEALTH_FAILURE_HINT =
+  "D1 binding DB is not answering; check the database binding";
+
+app.get(VERSION_PATH, (c) => c.json(BUILD_INFO));
+
+app.get(HEALTH_PATH, async (c) => {
+  try {
+    await c.env.DB.prepare(HEALTH_PROBE).first();
+    return c.json({ ok: true });
+  } catch (error) {
+    console.error("Health check failed", error);
+    return c.json({ ok: false, hint: HEALTH_FAILURE_HINT }, 500);
+  }
+});
 
 const callbackUri = (env: Env) => `${env.ISSUER}/callback`;
 

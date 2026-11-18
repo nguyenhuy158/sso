@@ -125,7 +125,17 @@ try {
   await get("/callback?state=forged&code=forged", 400);
   ok("/callback without matching state returns 400");
 
-  // 6. Unknown paths are a plain 404.
+  // 6. Deploy-check routes are public and carry no secrets.
+  const version = await (await get("/api/version", 200)).json();
+  if (typeof version.commit !== "string" || version.commit.length === 0) {
+    throw new Error(`/api/version: ${JSON.stringify(version)}`);
+  }
+  const health = await (await get("/api/health", 200)).json();
+  if (health.ok !== true)
+    throw new Error(`/api/health: ${JSON.stringify(health)}`);
+  ok("/api/version has a commit and /api/health is ok");
+
+  // 7. Unknown paths are a plain 404.
   await get("/definitely-not-a-route", 404);
   ok("unknown path returns 404");
 } catch (error) {
