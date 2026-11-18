@@ -42,6 +42,7 @@ writeFileSync(
     "GOOGLE_CLIENT_ID=e2e-client-id.apps.googleusercontent.com",
     "GOOGLE_CLIENT_SECRET=e2e-client-secret",
     "ADMIN_EMAIL=e2e@huyab.cfd",
+    "KEY_ENCRYPTION_SECRET=e2e-key-encryption-secret",
     "",
   ].join("\n"),
 );

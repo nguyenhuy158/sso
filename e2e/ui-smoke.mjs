@@ -180,10 +180,9 @@ try {
   if (formPost.status !== 415)
     throw new Error(`POST /keys with a non-JSON body: ${formPost.status}`);
   if (
-    (await makeKey(jsonHeaders(token), { label: "x", days: 366 })).status !==
-    400
+    (await makeKey(jsonHeaders(token), { label: "x", days: 91 })).status !== 400
   )
-    throw new Error("POST /keys accepted a lifetime over 365 days");
+    throw new Error("POST /keys accepted a lifetime over 90 days");
   ok("/keys rejects anonymous, non-admin, non-JSON and over-long requests");
 
   const created = await makeKey(jsonHeaders(token), { label: "e2e", days: 30 });
@@ -228,6 +227,27 @@ try {
   }
   ok("/keys lists the key with last use and never shows the secret");
 
+  const reveal = await fetch(`${BASE}/keys/${key.id}/secret`, {
+    headers: asCookie(token),
+  });
+  const revealed = await reveal.json();
+  if (
+    reveal.status !== 200 ||
+    revealed.key !== key.key ||
+    !row.revealable ||
+    reveal.headers.get("cache-control") !== "no-store"
+  )
+    throw new Error(`GET /keys/:id/secret: ${reveal.status}`);
+  const strangerReveal = await fetch(`${BASE}/keys/${key.id}/secret`, {
+    headers: asCookie(stranger),
+  });
+  if (
+    strangerReveal.status !== 403 ||
+    (await strangerReveal.text()).includes(key.key)
+  )
+    throw new Error("a non-admin could ask for a stored key");
+  ok("admin can copy a stored key again, others cannot");
+
   if (
     (await exchange(`${key.key}x`)).status !== 401 ||
     (await exchange()).status !== 401
@@ -240,6 +260,40 @@ try {
   if (revoke.status !== 200 || (await exchange(key.key)).status !== 401)
     throw new Error("a revoked key still worked");
   ok("wrong, missing and revoked keys get 401");
+  const afterRevoke = await fetch(`${BASE}/keys/${key.id}/secret`, {
+    headers: asCookie(token),
+  });
+  if (afterRevoke.status !== 404)
+    throw new Error("a revoked key could still be shown");
+  ok("a revoked key cannot be shown");
+
+  // 7. The admin panel: only the admin sees it, and it creates, copies and revokes.
+  const strangerPage = await (
+    await fetch(`${BASE}/`, { headers: asCookie(stranger) })
+  ).text();
+  if (strangerPage.includes("key-form"))
+    throw new Error("the key panel was shown to a non-admin");
+  await page.goto(`${BASE}/`);
+  await page.waitForSelector("#key-form", WAIT);
+  await page.fill("#key-label", "ui key");
+  await page.click("#key-form button[type=submit]");
+  await page.waitForFunction(
+    () => document.querySelector("#key-new-value")?.value.startsWith("hsk_"),
+    null,
+    WAIT,
+  );
+  await page.waitForSelector(
+    ".row:has-text('ui key') button:has-text('Copy')",
+    WAIT,
+  );
+  const fits = await page.evaluate(
+    () => document.documentElement.scrollHeight <= window.innerHeight,
+  );
+  if (!fits) throw new Error("the admin page scrolls the viewport");
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.click(".row:has-text('ui key') button:has-text('Revoke')");
+  await page.waitForSelector(".row.off:has-text('ui key')", WAIT);
+  ok("admin panel creates, lists and revokes a key within one viewport");
 } catch (error) {
   failed += 1;
   console.log("FAIL:", error.message);

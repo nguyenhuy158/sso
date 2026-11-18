@@ -14,7 +14,8 @@ src/
   google.ts                    # Google OAuth URL + code exchange
   jwt.ts                       # RS256 sign/verify, base64url JWT decoding, public JWKS export
   users.ts                     # sso_users upsert (D1)
-  auth-keys.ts                 # CLI auth keys (sso_auth_keys, hash only): create, list, revoke, redeem
+  auth-keys.ts                 # CLI auth keys (sso_auth_keys, hash + sealed copy): create, list, show again, revoke, redeem
+  secret-box.ts                # AES-GCM seal/open for stored auth keys
   page.ts                      # Server-rendered landing page (HTML string, no framework)
 scripts/keygen.mjs             # Generate the RSA private key JWK for JWT_PRIVATE_KEY
 e2e/                           # E2E smoke (playwright-core): run.mjs, readonly-smoke.mjs, ui-smoke.mjs
@@ -55,7 +56,7 @@ How this repo fits with the others:
   read-only part against `https://auth.huyab.cfd`.
 - `pnpm run deploy`: `wrangler deploy` to `auth.huyab.cfd`.
 
-Secrets (`JWT_PRIVATE_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ADMIN_EMAIL`) are set
+Secrets (`JWT_PRIVATE_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ADMIN_EMAIL`, `KEY_ENCRYPTION_SECRET`) are set
 with `wrangler secret put`, never committed. See `README.md` for first-time setup.
 
 Use `pnpm` for all package commands (pinned via `packageManager`, Node version

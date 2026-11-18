@@ -1,8 +1,9 @@
 import type { SessionClaims } from "./jwt";
+import { seal } from "./secret-box";
 
 export const KEY_PREFIX = "hsk_";
 export const DEFAULT_KEY_DAYS = 90;
-export const MAX_KEY_DAYS = 365;
+export const MAX_KEY_DAYS = 90;
 export const MAX_LABEL_LENGTH = 80;
 
 const SECRET_BYTES = 32;
@@ -17,6 +18,7 @@ export interface AuthKeySummary {
   expiresAt: string;
   revokedAt: string | null;
   lastUsedAt: string | null;
+  revealable: boolean;
 }
 
 interface AuthKeyRow {
@@ -27,6 +29,7 @@ interface AuthKeyRow {
   expires_at: string;
   revoked_at: string | null;
   last_used_at: string | null;
+  revealable: number;
 }
 
 interface OwnerRow {
@@ -61,6 +64,7 @@ const toSummary = (row: AuthKeyRow): AuthKeySummary => ({
   expiresAt: row.expires_at,
   revokedAt: row.revoked_at,
   lastUsedAt: row.last_used_at,
+  revealable: row.revealable === 1,
 });
 
 /** Parses the requested lifetime; returns null when it is not a whole number of days in range. */
@@ -71,22 +75,26 @@ export function parseKeyDays(value: unknown): number | null {
   return days >= 1 && days <= MAX_KEY_DAYS ? days : null;
 }
 
+const SUMMARY_COLUMNS =
+  "id, label, email, created_at, expires_at, revoked_at, last_used_at, key_enc IS NOT NULL AS revealable";
+
 /**
- * Makes a key for the signed-in admin. The plain key is returned once; only its
- * SHA-256 hash is stored, so a database leak does not leak usable keys.
+ * Makes a key for the signed-in admin. Lookup uses the SHA-256 hash. With an
+ * encryption secret the key is also stored sealed (AES-GCM) so the admin can copy
+ * it again; a database leak alone then still does not leak usable keys.
  */
 export async function createAuthKey(
   db: D1Database,
   owner: SessionClaims,
-  params: { label: string; days: number },
+  params: { label: string; days: number; encryptionSecret?: string },
 ): Promise<{ key: string; summary: AuthKeySummary }> {
   const id = toHex(randomBytes(ID_BYTES));
   const key = `${KEY_PREFIX}${id}_${toHex(randomBytes(SECRET_BYTES))}`;
   const row = await db
     .prepare(
-      `INSERT INTO sso_auth_keys (id, label, key_hash, sub, email, owner_name, picture, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       RETURNING id, label, email, created_at, expires_at, revoked_at, last_used_at`,
+      `INSERT INTO sso_auth_keys (id, label, key_hash, sub, email, owner_name, picture, expires_at, key_enc)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       RETURNING ${SUMMARY_COLUMNS}`,
     )
     .bind(
       id,
@@ -97,6 +105,7 @@ export async function createAuthKey(
       owner.name,
       owner.picture,
       isoFromNow(params.days * SECONDS_PER_DAY),
+      params.encryptionSecret ? await seal(params.encryptionSecret, key) : null,
     )
     .first<AuthKeyRow>();
   if (!row) throw new Error("Failed to create auth key");
@@ -106,7 +115,7 @@ export async function createAuthKey(
 export async function listAuthKeys(db: D1Database): Promise<AuthKeySummary[]> {
   const { results } = await db
     .prepare(
-      `SELECT id, label, email, created_at, expires_at, revoked_at, last_used_at
+      `SELECT ${SUMMARY_COLUMNS}
        FROM sso_auth_keys ORDER BY created_at DESC, id`,
     )
     .all<AuthKeyRow>();
@@ -149,4 +158,20 @@ export async function redeemAuthKey(
   if (!row) return null;
   const { id, ...owner } = row;
   return { id, owner };
+}
+
+/** Sealed copy of an active, unexpired key, or null when it is gone, revoked, expired or was never stored. */
+export async function getSealedKey(
+  db: D1Database,
+  id: string,
+): Promise<string | null> {
+  const row = await db
+    .prepare(
+      `SELECT key_enc FROM sso_auth_keys
+       WHERE id = ? AND revoked_at IS NULL AND key_enc IS NOT NULL
+         AND expires_at > strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`,
+    )
+    .bind(id)
+    .first<{ key_enc: string }>();
+  return row?.key_enc ?? null;
 }
