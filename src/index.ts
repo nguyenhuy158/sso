@@ -27,7 +27,6 @@ import {
   signSession,
   verifySession,
 } from "./jwt";
-import { landingPage } from "./page";
 import { open } from "./secret-box";
 import { type SsoUser, upsertUser } from "./users";
 
@@ -158,10 +157,15 @@ app.get("/me", async (c) => {
       picture: claims.picture,
     },
     expiresAt: claims.exp,
+    isAdmin: isAdminEmail(c.env, claims.email),
   });
 });
 
 const BEARER = /^Bearer\s+(.+)$/i;
+
+function isAdminEmail(env: Env, email: string | null | undefined): boolean {
+  return !!email && email.toLowerCase() === env.ADMIN_EMAIL?.toLowerCase();
+}
 
 /** Signed-in admin from the cookie, or the error response to return. */
 async function requireAdmin(
@@ -171,7 +175,7 @@ async function requireAdmin(
   const token = getCookie(c, SESSION_COOKIE);
   const claims = token ? await verifySession(c.env, token) : null;
   if (!claims) return c.json({ error: "unauthorized" }, 401);
-  if (claims.email?.toLowerCase() !== c.env.ADMIN_EMAIL.toLowerCase()) {
+  if (!isAdminEmail(c.env, claims.email)) {
     return c.json({ error: "forbidden" }, 403);
   }
   return claims;
@@ -267,15 +271,6 @@ const logout = (c: Context<{ Bindings: Env }>) => {
 
 app.get("/logout", logout);
 app.post("/logout", logout);
-
-app.get("/", async (c) => {
-  const token = getCookie(c, SESSION_COOKIE);
-  const claims = token ? await verifySession(c.env, token) : null;
-  const isAdmin =
-    !!claims?.email &&
-    claims.email.toLowerCase() === c.env.ADMIN_EMAIL?.toLowerCase();
-  return c.html(landingPage({ issuer: c.env.ISSUER, claims, isAdmin }));
-});
 
 app.notFound((c) => c.text("Not found", 404));
 

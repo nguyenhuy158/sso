@@ -1,0 +1,369 @@
+/* ===========================================================================
+   ui-kit design tokens: nguon chuan cho moi project ca nhan dung React +
+   Tailwind v4. Project khac COPY file nay va import no thay cho
+   `@import "tailwindcss"` trong file CSS goc.
+
+   Hop dong:
+   - Ten bien `--ui-*` va ten utility trong `@theme inline` la co dinh. Them /
+     doi ten / xoa token thi sua o day truoc roi dong bo sang cac app.
+   - Project chi duoc doi GIA TRI trong `:root` (sang) va `.dark` (toi), vi du
+     hue thuong hieu. Dark mode theo class `.dark` tren <html>.
+   - Component chi dung class ngu nghia (bg-surface, text-fg-muted,
+     bg-primary...), khong hardcode mau palette (violet-600, stone-200...).
+=========================================================================== */
+
+@import "tailwindcss";
+
+/* Dark theo class .dark tren <html> de toggle thu cong duoc (khong phu thuoc OS). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* May co chuot that. Dung de thu nho chu/chieu cao control tren desktop:
+   iPad rong hon 640px nhung Safari van tu zoom neu chu duoi 16px, nen chi dua
+   vao breakpoint la khong du. */
+@custom-variant pointer-fine (@media (hover: hover) and (pointer: fine));
+
+/* ---------------------------------------------------------------------------
+   1. Bien mau. Doi 3 dong --ui-primary* la doi toan bo tone cua app.
+   Dung oklch de chinh do sang/bao hoa khong bi lech mau.
+--------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+
+  /* Nen va chu */
+  --ui-bg: oklch(99% 0.005 300);
+  --ui-surface: oklch(100% 0 0);
+  --ui-surface-muted: oklch(97% 0.004 280);
+  /* Nen re chuot (nut vien, ghost, dong bang, muc menu). Mau dac, dam hon ca
+     bg, surface lan surface-muted mot bac nen re vao o dau cung thay. */
+  --ui-surface-hover: oklch(94.5% 0.005 280);
+  /* border: vien control (o nhap, checkbox, nut vien, chip). border-subtle: vien
+     trang tri nhat hon mot bac cho card, khung lop noi, vach chia, header. */
+  --ui-border: oklch(90% 0.006 280);
+  --ui-border-subtle: oklch(93% 0.005 280);
+  --ui-fg: oklch(22% 0.01 280);
+  --ui-fg-muted: oklch(52% 0.015 280);
+
+  /* Mau thuong hieu */
+  --ui-primary: oklch(53% 0.23 300);
+  --ui-primary-hover: oklch(47% 0.23 300);
+  --ui-primary-fg: oklch(100% 0 0);
+  --ui-primary-soft: oklch(96% 0.03 300);
+  /* Chu mau nhan dat tren nen -soft (badge, chip dang chon): du 4.5:1 ca hai che do. */
+  --ui-primary-text: oklch(53% 0.23 300);
+
+  /* Mau trang thai. Ban goc dung cho nen dac va icon; ban -text cho chu tren nen
+     -soft (badge, alert), toi thieu 4.5:1; -fg la chu tren nen dac. */
+  --ui-success: oklch(58% 0.15 155);
+  --ui-success-soft: oklch(96% 0.04 155);
+  --ui-success-text: oklch(48% 0.13 155);
+  --ui-warning: oklch(70% 0.16 75);
+  --ui-warning-soft: oklch(96% 0.05 75);
+  --ui-warning-text: oklch(48% 0.12 70);
+  --ui-danger: oklch(58% 0.2 20);
+  --ui-danger-soft: oklch(96% 0.03 20);
+  --ui-danger-text: oklch(52% 0.2 20);
+  --ui-danger-fg: oklch(100% 0 0);
+
+  /* Bong chi cho lop noi (menu, listbox, lich, toast); khoi nam trong trang khong bong. */
+  --ui-shadow-popover:
+    0 8px 24px -6px oklch(0% 0 0 / 14%), 0 2px 6px oklch(0% 0 0 / 6%);
+
+  --ui-ring: oklch(53% 0.23 300 / 35%);
+  --ui-radius: 0.625rem;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --ui-bg: oklch(16% 0.008 280);
+  --ui-surface: oklch(21% 0.01 280);
+  --ui-surface-muted: oklch(25% 0.01 280);
+  --ui-surface-hover: oklch(29% 0.012 280);
+  --ui-border: oklch(32% 0.012 280);
+  --ui-border-subtle: oklch(28% 0.012 280);
+  --ui-fg: oklch(94% 0.005 280);
+  --ui-fg-muted: oklch(68% 0.015 280);
+
+  --ui-primary: oklch(65% 0.2 300);
+  --ui-primary-hover: oklch(71% 0.2 300);
+  --ui-primary-fg: oklch(18% 0.02 300);
+  --ui-primary-soft: oklch(30% 0.06 300);
+  --ui-primary-text: oklch(75% 0.15 300);
+
+  --ui-success: oklch(70% 0.14 155);
+  --ui-success-soft: oklch(30% 0.05 155);
+  --ui-success-text: oklch(70% 0.14 155);
+  --ui-warning: oklch(78% 0.14 75);
+  --ui-warning-soft: oklch(32% 0.05 75);
+  --ui-warning-text: oklch(78% 0.14 75);
+  --ui-danger: oklch(68% 0.17 20);
+  --ui-danger-soft: oklch(30% 0.06 20);
+  --ui-danger-text: oklch(74% 0.14 20);
+  --ui-danger-fg: oklch(20% 0.02 20);
+
+  --ui-shadow-popover:
+    0 8px 24px -6px oklch(0% 0 0 / 50%), 0 2px 6px oklch(0% 0 0 / 30%);
+
+  --ui-ring: oklch(65% 0.2 300 / 45%);
+}
+
+/* ---------------------------------------------------------------------------
+   2. Dang ky bien thanh utility cua Tailwind: bg-surface, text-fg-muted,
+   border-border, ring-ring, rounded-ui...
+   `inline` de Tailwind tra thang var(--ui-*) vao class, nho vay .dark doi mau
+   ma khong can sinh lai utility.
+--------------------------------------------------------------------------- */
+@theme inline {
+  --color-bg: var(--ui-bg);
+  --color-surface: var(--ui-surface);
+  --color-surface-muted: var(--ui-surface-muted);
+  --color-surface-hover: var(--ui-surface-hover);
+  --color-border: var(--ui-border);
+  --color-border-subtle: var(--ui-border-subtle);
+  --color-fg: var(--ui-fg);
+  --color-fg-muted: var(--ui-fg-muted);
+
+  --color-primary: var(--ui-primary);
+  --color-primary-hover: var(--ui-primary-hover);
+  --color-primary-fg: var(--ui-primary-fg);
+  --color-primary-soft: var(--ui-primary-soft);
+  --color-primary-text: var(--ui-primary-text);
+
+  --color-success: var(--ui-success);
+  --color-success-soft: var(--ui-success-soft);
+  --color-success-text: var(--ui-success-text);
+  --color-warning: var(--ui-warning);
+  --color-warning-soft: var(--ui-warning-soft);
+  --color-warning-text: var(--ui-warning-text);
+  --color-danger: var(--ui-danger);
+  --color-danger-soft: var(--ui-danger-soft);
+  --color-danger-text: var(--ui-danger-text);
+  --color-danger-fg: var(--ui-danger-fg);
+
+  --color-ring: var(--ui-ring);
+  --radius-ui: var(--ui-radius);
+  --shadow-popover: var(--ui-shadow-popover);
+}
+
+/* ---------------------------------------------------------------------------
+   3. Base
+--------------------------------------------------------------------------- */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100dvh;
+  background: var(--ui-bg);
+  color: var(--ui-fg);
+  font-family:
+    "Be Vietnam Pro", Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  touch-action: pan-x pan-y;
+}
+
+/* Co tinh KHONG boc @layer: `font: inherit` phai thang moi utility co chu text-
+   va font- tren control, nho vay input luon >= 16px va iOS Safari khong tu zoom
+   khi focus. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+/* So thang cot, dung cho bang tien/so lieu. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Padding an toan cho notch va home indicator. */
+.safe-top {
+  padding-top: calc(0.5rem + env(safe-area-inset-top));
+}
+
+.safe-bottom {
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+}
+
+/* Thanh cuon 4px tu an: dung yen thi trong suot, re chuot vao vung cuon thi hien
+   mo. An bang MAU trong suot chu khong bang `scrollbar-width: none`, nen be rong
+   van giu cho va noi dung khong bi day ngang khi thanh hien. Mau thumb di qua bien
+   dat tren chinh khung cuon: Chrome khong ve lai thumb khi viet
+   `*:hover::-webkit-scrollbar-thumb`. Khong them `transition` vao rule `*` nay:
+   CSS ngoai @layer thang moi utility `transition-*` cua Tailwind v4. */
+* {
+  --ui-scrollbar-thumb: transparent;
+}
+
+*:hover {
+  --ui-scrollbar-thumb: color-mix(in oklch, var(--ui-fg) 16%, transparent);
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ui-scrollbar-thumb);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklch, var(--ui-fg) 40%, transparent);
+}
+
+/* Firefox. Phai nam trong @supports: tu Chrome 121, phan tu co scrollbar-width /
+   scrollbar-color thi Chrome bo qua toan bo ::-webkit-scrollbar o tren. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  *:hover {
+    scrollbar-color: color-mix(in oklch, var(--ui-fg) 18%, transparent)
+      transparent;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   4. Animation dung chung cho lop noi. Vao ease-out, ra ngan hon va ease-in.
+   Ban -out dung kem `forwards` va component giu phan tu trong DOM toi khi chay
+   xong (use-presence.ts).
+--------------------------------------------------------------------------- */
+@keyframes ui-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes ui-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes ui-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Sheet day: truot len tu mep duoi, ra thi truot ve. */
+@keyframes ui-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes ui-slide-down-out {
+  to {
+    transform: translateY(100%);
+  }
+}
+
+/* Sheet trai / phai: chi translate, khong scale, khong opacity tren panel. */
+@keyframes ui-slide-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes ui-slide-out-left {
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes ui-slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes ui-slide-out-right {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Menu, listbox, lich: moc ra tu phia nut (dich 4px + scale 95%), ra thi chi mo + scale. */
+@keyframes ui-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.95);
+  }
+}
+
+@keyframes ui-pop-out {
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+/* Toast: truot ca chieu cao tu mep man gan nhat (day o desktop, dinh o mobile). */
+@keyframes ui-toast-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+
+@keyframes ui-toast-out-down {
+  to {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+
+@keyframes ui-toast-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes ui-toast-out-up {
+  to {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes ui-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

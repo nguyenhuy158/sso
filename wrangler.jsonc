@@ -2,7 +2,9 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "sso",
   "main": "src/index.ts",
-  "build": { "command": "node scripts/build-info.mjs" },
+  "build": { "command": "node scripts/build-info.mjs && vite build" },
+  // React landing page; every other path falls through to the Worker.
+  "assets": { "directory": "./web-dist" },
   "compatibility_date": "2025-01-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
