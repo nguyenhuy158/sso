@@ -9,7 +9,10 @@ export interface SsoUser {
 }
 
 /** Creates the account on first sign-in, refreshing the profile on every later one. */
-export async function upsertUser(db: D1Database, identity: GoogleIdentity): Promise<SsoUser> {
+export async function upsertUser(
+  db: D1Database,
+  identity: GoogleIdentity,
+): Promise<SsoUser> {
   const row = await db
     .prepare(
       `INSERT INTO sso_users (google_sub, email, name, picture, last_login_at)

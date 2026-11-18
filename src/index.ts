@@ -9,6 +9,7 @@ import {
   redeemAuthKey,
   revokeAuthKey,
 } from "./auth-keys";
+import { BUILD_INFO } from "./build-info";
 import {
   AUTH_KEY_TOKEN_TTL_SECONDS,
   type Env,
@@ -26,7 +27,6 @@ import {
   signSession,
   verifySession,
 } from "./jwt";
-import { BUILD_INFO } from "./build-info";
 import { landingPage } from "./page";
 import { open } from "./secret-box";
 import { type SsoUser, upsertUser } from "./users";
@@ -36,7 +36,8 @@ const app = new Hono<{ Bindings: Env }>();
 const VERSION_PATH = "/api/version";
 const HEALTH_PATH = "/api/health";
 const HEALTH_PROBE = "SELECT 1";
-const HEALTH_FAILURE_HINT = "D1 binding DB is not answering; check the database binding";
+const HEALTH_FAILURE_HINT =
+  "D1 binding DB is not answering; check the database binding";
 
 app.get(VERSION_PATH, (c) => c.json(BUILD_INFO));
 
