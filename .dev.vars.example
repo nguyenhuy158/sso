@@ -4,3 +4,4 @@
 JWT_PRIVATE_KEY={"kty":"RSA",...}
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-client-secret
+ADMIN_EMAIL=you@example.com

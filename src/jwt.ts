@@ -1,4 +1,4 @@
-import { KEY_ID, required, type Env } from "./env";
+import { type Env, KEY_ID, required } from "./env";
 
 /**
  * RS256 tokens: the private key never leaves this Worker, and relying apps verify
@@ -19,16 +19,44 @@ export interface SessionClaims {
   exp: number;
 }
 
+/** Claims for one user, shared by the cookie flow and the auth-key flow so they cannot drift. */
+export function buildClaims(
+  env: Env,
+  who: {
+    sub: string;
+    email: string | null;
+    name: string | null;
+    picture: string | null;
+  },
+  ttlSeconds: number,
+): SessionClaims {
+  const now = Math.floor(Date.now() / 1000);
+  return {
+    iss: env.ISSUER,
+    sub: who.sub,
+    aud: env.ALLOWED_REDIRECT_SUFFIX.replace(/^\./, ""),
+    email: who.email,
+    name: who.name,
+    picture: who.picture,
+    iat: now,
+    exp: now + ttlSeconds,
+  };
+}
+
 function base64UrlEncode(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 function base64UrlDecode(input: string): Uint8Array {
   const base64 = input.replace(/-/g, "+").replace(/_/g, "/");
-  return Uint8Array.from(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")), (c) =>
-    c.charCodeAt(0),
+  return Uint8Array.from(
+    atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")),
+    (c) => c.charCodeAt(0),
   );
 }
 
@@ -41,7 +69,9 @@ let cachedKey: Promise<CryptoKey> | null = null;
 let cachedJwk: JsonWebKey | null = null;
 
 function privateJwk(env: Env): JsonWebKey {
-  cachedJwk ??= JSON.parse(required(env.JWT_PRIVATE_KEY, "JWT_PRIVATE_KEY")) as JsonWebKey;
+  cachedJwk ??= JSON.parse(
+    required(env.JWT_PRIVATE_KEY, "JWT_PRIVATE_KEY"),
+  ) as JsonWebKey;
   return cachedJwk;
 }
 
@@ -56,7 +86,10 @@ function signingKey(env: Env): Promise<CryptoKey> {
   return cachedKey;
 }
 
-export async function signSession(env: Env, claims: SessionClaims): Promise<string> {
+export async function signSession(
+  env: Env,
+  claims: SessionClaims,
+): Promise<string> {
   const header = base64UrlEncode(
     encoder.encode(JSON.stringify({ alg: "RS256", typ: "JWT", kid: KEY_ID })),
   );
@@ -82,7 +115,10 @@ export function publicJwks(env: Env): { keys: Record<string, unknown>[] } {
  * Verification is only needed for this service's own /me endpoint; relying apps
  * verify independently against the JWKS.
  */
-export async function verifySession(env: Env, token: string): Promise<SessionClaims | null> {
+export async function verifySession(
+  env: Env,
+  token: string,
+): Promise<SessionClaims | null> {
   const parts = token.split(".");
   if (parts.length !== 3) return null;
 

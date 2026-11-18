@@ -9,11 +9,12 @@ users in the shared D1 database and issues an RS256 JWT in the domain-wide
 
 ```text
 src/
-  index.ts                     # Hono app: /login, /callback, /logout, /me, JWKS, landing page
+  index.ts                     # Hono app: /login, /callback, /logout, /me, /token, /keys, JWKS, landing page
   env.ts                       # Env bindings, cookie names, redirect allow-list, session TTL
   google.ts                    # Google OAuth URL + code exchange
   jwt.ts                       # RS256 sign/verify, base64url JWT decoding, public JWKS export
   users.ts                     # sso_users upsert (D1)
+  auth-keys.ts                 # CLI auth keys (sso_auth_keys, hash only): create, list, revoke, redeem
   page.ts                      # Server-rendered landing page (HTML string, no framework)
 scripts/keygen.mjs             # Generate the RSA private key JWK for JWT_PRIVATE_KEY
 e2e/                           # E2E smoke (playwright-core): run.mjs, readonly-smoke.mjs, ui-smoke.mjs
@@ -54,7 +55,7 @@ How this repo fits with the others:
   read-only part against `https://auth.huyab.cfd`.
 - `pnpm run deploy`: `wrangler deploy` to `auth.huyab.cfd`.
 
-Secrets (`JWT_PRIVATE_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) are set
+Secrets (`JWT_PRIVATE_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ADMIN_EMAIL`) are set
 with `wrangler secret put`, never committed. See `README.md` for first-time setup.
 
 Use `pnpm` for all package commands (pinned via `packageManager`, Node version
