@@ -41,6 +41,7 @@ writeFileSync(
     `JWT_PRIVATE_KEY='${privateKey}'`,
     "GOOGLE_CLIENT_ID=e2e-client-id.apps.googleusercontent.com",
     "GOOGLE_CLIENT_SECRET=e2e-client-secret",
+    "ADMIN_EMAIL=e2e@huyab.cfd",
     "",
   ].join("\n"),
 );
@@ -50,6 +51,11 @@ const suiteEnv = { E2E_BASE_URL: BASE, E2E_JWT_PRIVATE_KEY: privateKey };
 let failed = false;
 let server;
 try {
+  await run(
+    "pnpm",
+    ["exec", "wrangler", "d1", "migrations", "apply", "db", "--local"],
+    { label: "local D1 migrations", env: {} },
+  );
   server = await startServer({
     command: "pnpm",
     args: [

@@ -68,6 +68,11 @@ number-as-string and never changes for a given Google account.
 
 Sessions last 24 hours.
 
+CLIs and scripts have no browser, so they use an auth key: `POST https://auth.huyab.cfd/token`
+with `Authorization: Bearer <key>` returns `{ access_token, token_type, expires_in: 3600 }`.
+The token has the same claims as the cookie (the key owner's `sub`, `email`, `name`,
+`picture`), so verification does not change. Keep keys in BWS; see the README.
+
 ## 4. Verify it
 
 Whatever the language, the checks are the same four:

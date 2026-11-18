@@ -1,17 +1,32 @@
-import { Hono, type Context } from "hono";
+import { type Context, Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import {
+  createAuthKey,
+  listAuthKeys,
+  MAX_LABEL_LENGTH,
+  parseKeyDays,
+  redeemAuthKey,
+  revokeAuthKey,
+} from "./auth-keys";
+import {
+  AUTH_KEY_TOKEN_TTL_SECONDS,
+  type Env,
   isAllowedReturnUrl,
-  sessionTtl,
   RETURN_COOKIE,
   SESSION_COOKIE,
   STATE_COOKIE,
-  type Env,
+  sessionTtl,
 } from "./env";
 import { authorizationUrl, exchangeCode, googleConfigured } from "./google";
-import { publicJwks, signSession, verifySession } from "./jwt";
-import { upsertUser } from "./users";
+import {
+  buildClaims,
+  publicJwks,
+  type SessionClaims,
+  signSession,
+  verifySession,
+} from "./jwt";
 import { landingPage } from "./page";
+import { type SsoUser, upsertUser } from "./users";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -22,11 +37,21 @@ const callbackUri = (env: Env) => `${env.ISSUER}/callback`;
  * the visitor comes back to that page signed in.
  */
 app.get("/login", (c) => {
-  if (!googleConfigured(c.env)) return c.text("Google sign-in is not configured", 503);
+  if (!googleConfigured(c.env))
+    return c.text("Google sign-in is not configured", 503);
 
   const requested = c.req.query("redirect_uri");
-  const returnTo = requested && isAllowedReturnUrl(c.env, requested) ? requested : c.env.ISSUER;
-  const secure = { httpOnly: true, secure: true, sameSite: "Lax", path: "/", maxAge: 600 } as const;
+  const returnTo =
+    requested && isAllowedReturnUrl(c.env, requested)
+      ? requested
+      : c.env.ISSUER;
+  const secure = {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Lax",
+    path: "/",
+    maxAge: 600,
+  } as const;
 
   // The state is mirrored in a cookie so the callback can prove the flow started
   // in this browser rather than being replayed by someone else.
@@ -34,11 +59,15 @@ app.get("/login", (c) => {
   setCookie(c, STATE_COOKIE, state, secure);
   setCookie(c, RETURN_COOKIE, returnTo, secure);
 
-  return c.redirect(authorizationUrl(c.env, { redirectUri: callbackUri(c.env), state }), 302);
+  return c.redirect(
+    authorizationUrl(c.env, { redirectUri: callbackUri(c.env), state }),
+    302,
+  );
 });
 
 app.get("/callback", async (c) => {
-  if (!googleConfigured(c.env)) return c.text("Google sign-in is not configured", 503);
+  if (!googleConfigured(c.env))
+    return c.text("Google sign-in is not configured", 503);
 
   const expectedState = getCookie(c, STATE_COOKIE);
   const returnTo = getCookie(c, RETURN_COOKIE) ?? c.env.ISSUER;
@@ -53,9 +82,12 @@ app.get("/callback", async (c) => {
   const code = c.req.query("code");
   if (!code) return c.text("Google did not return an authorization code.", 400);
 
-  let user;
+  let user: SsoUser;
   try {
-    const identity = await exchangeCode(c.env, { code, redirectUri: callbackUri(c.env) });
+    const identity = await exchangeCode(c.env, {
+      code,
+      redirectUri: callbackUri(c.env),
+    });
     user = await upsertUser(c.env.DB, identity);
   } catch (error) {
     console.error("Google sign-in failed", error);
@@ -63,17 +95,10 @@ app.get("/callback", async (c) => {
   }
 
   const ttl = sessionTtl(c.env);
-  const now = Math.floor(Date.now() / 1000);
-  const token = await signSession(c.env, {
-    iss: c.env.ISSUER,
-    sub: String(user.id),
-    aud: c.env.ALLOWED_REDIRECT_SUFFIX.replace(/^\./, ""),
-    email: user.email,
-    name: user.name,
-    picture: user.picture,
-    iat: now,
-    exp: now + ttl,
-  });
+  const token = await signSession(
+    c.env,
+    buildClaims(c.env, { ...user, sub: String(user.id) }, ttl),
+  );
 
   // Domain-wide cookie: every *.huyab.cfd app receives it without another login.
   setCookie(c, SESSION_COOKIE, token, {
@@ -85,7 +110,10 @@ app.get("/callback", async (c) => {
     maxAge: ttl,
   });
 
-  return c.redirect(isAllowedReturnUrl(c.env, returnTo) ? returnTo : c.env.ISSUER, 302);
+  return c.redirect(
+    isAllowedReturnUrl(c.env, returnTo) ? returnTo : c.env.ISSUER,
+    302,
+  );
 });
 
 /** Public key set; relying apps fetch this to verify tokens on their own. */
@@ -102,8 +130,91 @@ app.get("/me", async (c) => {
   if (!claims) return c.json({ authenticated: false }, 401);
   return c.json({
     authenticated: true,
-    user: { id: claims.sub, email: claims.email, name: claims.name, picture: claims.picture },
+    user: {
+      id: claims.sub,
+      email: claims.email,
+      name: claims.name,
+      picture: claims.picture,
+    },
     expiresAt: claims.exp,
+  });
+});
+
+const BEARER = /^Bearer\s+(.+)$/i;
+
+/** Signed-in admin from the cookie, or the error response to return. */
+async function requireAdmin(
+  c: Context<{ Bindings: Env }>,
+): Promise<SessionClaims | Response> {
+  if (!c.env.ADMIN_EMAIL) return c.json({ error: "auth_keys_disabled" }, 503);
+  const token = getCookie(c, SESSION_COOKIE);
+  const claims = token ? await verifySession(c.env, token) : null;
+  if (!claims) return c.json({ error: "unauthorized" }, 401);
+  if (claims.email?.toLowerCase() !== c.env.ADMIN_EMAIL.toLowerCase()) {
+    return c.json({ error: "forbidden" }, 403);
+  }
+  return claims;
+}
+
+/** Makes an auth key. The key is in this response only; keep it in BWS. */
+app.post("/keys", async (c) => {
+  const admin = await requireAdmin(c);
+  if (admin instanceof Response) return admin;
+  // JSON only: a cross-site form cannot send this content type with the cookie.
+  if (
+    !c.req.header("content-type")?.toLowerCase().startsWith("application/json")
+  ) {
+    return c.json({ error: "expected_json" }, 415);
+  }
+  const body = await c.req
+    .json<{ label?: unknown; days?: unknown }>()
+    .catch(() => null);
+  const label = typeof body?.label === "string" ? body.label.trim() : "";
+  const days = parseKeyDays(body?.days);
+  if (!label || label.length > MAX_LABEL_LENGTH || days === null) {
+    return c.json({ error: "invalid_request" }, 400);
+  }
+  const { key, summary } = await createAuthKey(c.env.DB, admin, {
+    label,
+    days,
+  });
+  c.header("Cache-Control", "no-store");
+  return c.json({ key, ...summary }, 201);
+});
+
+app.get("/keys", async (c) => {
+  const admin = await requireAdmin(c);
+  if (admin instanceof Response) return admin;
+  return c.json({ keys: await listAuthKeys(c.env.DB) });
+});
+
+app.delete("/keys/:id", async (c) => {
+  const admin = await requireAdmin(c);
+  if (admin instanceof Response) return admin;
+  return (await revokeAuthKey(c.env.DB, c.req.param("id")))
+    ? c.json({ revoked: true })
+    : c.json({ error: "not_found" }, 404);
+});
+
+/** Trades an auth key for a short-lived JWT with the same claims as the cookie. */
+app.post("/token", async (c) => {
+  const key = c.req.header("Authorization")?.match(BEARER)?.[1]?.trim();
+  const redeemed = key ? await redeemAuthKey(c.env.DB, key) : null;
+  c.header("Cache-Control", "no-store");
+  if (!redeemed) return c.json({ error: "invalid_key" }, 401);
+  console.log("auth_key_used", redeemed.id);
+  const accessToken = await signSession(
+    c.env,
+    buildClaims(
+      c.env,
+      { ...redeemed.owner, name: redeemed.owner.owner_name },
+      AUTH_KEY_TOKEN_TTL_SECONDS,
+    ),
+  );
+  return c.json({
+    access_token: accessToken,
+    token_type: "Bearer",
+    expires_in: AUTH_KEY_TOKEN_TTL_SECONDS,
   });
 });
 

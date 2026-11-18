@@ -19,10 +19,26 @@ at `auth.huyab.cfd`; every other app reads the resulting cookie.
 | `GET /logout?redirect_uri=<url>` | clears the cookie, signing out of every app |
 | `GET /me` | current session as JSON, or 401 |
 | `GET /.well-known/jwks.json` | public keys for verification |
+| `POST /token` | `Authorization: Bearer <auth key>` returns a 1 hour JWT for CLIs |
+| `POST /keys`, `GET /keys`, `DELETE /keys/:id` | make, list and revoke auth keys (signed-in `ADMIN_EMAIL` only) |
 
 `redirect_uri` is only honoured for `https` URLs inside `huyab.cfd`; anything
 else falls back to this service's own page, so the login endpoint cannot be used
 as an open redirect.
+
+## Auth keys for CLIs
+
+An auth key lets a CLI get a token without Google, like a Tailscale auth key. Only the hash is stored, so the key is shown once: keep it in BWS.
+
+```sh
+# 1. Signed in as ADMIN_EMAIL in a browser: make a key (name, 1-365 days, default 90)
+curl -X POST https://auth.huyab.cfd/keys -H 'content-type: application/json' \
+  -H "cookie: huyab_sso=<your cookie>" -d '{"label":"mac cli","days":90}'
+# 2. Store the "key" value in BWS. 3. Trade it for a 1 hour JWT:
+curl -sX POST https://auth.huyab.cfd/token -H "Authorization: Bearer $KEY" | jq -r .access_token
+```
+
+Send the JWT as `Authorization: Bearer` to any app that reads Bearer (`@huyab/sso`). A key acts as the admin who made it; revoke it with `DELETE /keys/<id>`. First deploy: `pnpm db:remote`, then `wrangler secret put ADMIN_EMAIL`.
 
 ## Setup
 

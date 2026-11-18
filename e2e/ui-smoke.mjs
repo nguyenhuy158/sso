@@ -148,6 +148,98 @@ try {
     );
   }
   ok("/logout clears the cookie and ignores foreign redirect_uri");
+
+  // 6. Auth keys: only the admin can make one, and it buys a short-lived token.
+  const asCookie = (value) => ({ cookie: `${SESSION_COOKIE}=${value}` });
+  const jsonHeaders = (value) => ({
+    ...asCookie(value),
+    "content-type": "application/json",
+  });
+  const makeKey = (headers, body) =>
+    fetch(`${BASE}/keys`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+
+  if (
+    (await makeKey({ "content-type": "application/json" }, {})).status !== 401
+  )
+    throw new Error("POST /keys without a session was not 401");
+  const stranger = await mintToken({ email: "stranger@huyab.cfd" });
+  if (
+    (await makeKey(jsonHeaders(stranger), { label: "x", days: 1 })).status !==
+    403
+  )
+    throw new Error("POST /keys by a non-admin was not 403");
+  const formPost = await fetch(`${BASE}/keys`, {
+    method: "POST",
+    headers: { ...asCookie(token), "content-type": "text/plain" },
+    body: "label=x",
+  });
+  if (formPost.status !== 415)
+    throw new Error(`POST /keys with a non-JSON body: ${formPost.status}`);
+  if (
+    (await makeKey(jsonHeaders(token), { label: "x", days: 366 })).status !==
+    400
+  )
+    throw new Error("POST /keys accepted a lifetime over 365 days");
+  ok("/keys rejects anonymous, non-admin, non-JSON and over-long requests");
+
+  const created = await makeKey(jsonHeaders(token), { label: "e2e", days: 30 });
+  const key = await created.json();
+  if (created.status !== 201 || !key.key?.startsWith("hsk_") || !key.id) {
+    throw new Error(`POST /keys: ${created.status} ${JSON.stringify(key)}`);
+  }
+  ok("admin can make an auth key");
+
+  const exchange = (secret) =>
+    fetch(`${BASE}/token`, {
+      method: "POST",
+      headers: secret ? { authorization: `Bearer ${secret}` } : {},
+    });
+  const issued = await exchange(key.key);
+  const issuedBody = await issued.json();
+  if (
+    issued.status !== 200 ||
+    issuedBody.token_type !== "Bearer" ||
+    issuedBody.expires_in !== 3600
+  ) {
+    throw new Error(
+      `POST /token: ${issued.status} ${JSON.stringify(issuedBody)}`,
+    );
+  }
+  const viaKey = await me(issuedBody.access_token);
+  if (
+    viaKey.status !== 200 ||
+    viaKey.body.user?.email !== EMAIL ||
+    viaKey.body.user?.id !== "42"
+  ) {
+    throw new Error(`/me with a key token: ${JSON.stringify(viaKey)}`);
+  }
+  ok("/token trades the key for a JWT with the owner's claims");
+
+  const listed = await (
+    await fetch(`${BASE}/keys`, { headers: asCookie(token) })
+  ).json();
+  const row = listed.keys?.find((item) => item.id === key.id);
+  if (!row?.lastUsedAt || JSON.stringify(listed).includes(key.key)) {
+    throw new Error(`GET /keys: ${JSON.stringify(listed)}`);
+  }
+  ok("/keys lists the key with last use and never shows the secret");
+
+  if (
+    (await exchange(`${key.key}x`)).status !== 401 ||
+    (await exchange()).status !== 401
+  )
+    throw new Error("/token accepted a wrong or missing key");
+  const revoke = await fetch(`${BASE}/keys/${key.id}`, {
+    method: "DELETE",
+    headers: asCookie(token),
+  });
+  if (revoke.status !== 200 || (await exchange(key.key)).status !== 401)
+    throw new Error("a revoked key still worked");
+  ok("wrong, missing and revoked keys get 401");
 } catch (error) {
   failed += 1;
   console.log("FAIL:", error.message);
