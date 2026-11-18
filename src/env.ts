@@ -6,6 +6,8 @@ export interface Env {
   SESSION_TTL_SECONDS?: string;
   /** Only this signed-in email may manage auth keys. Set with: wrangler secret put ADMIN_EMAIL */
   ADMIN_EMAIL?: string;
+  /** Encrypts stored auth keys so the admin can copy them again. Set with: wrangler secret put KEY_ENCRYPTION_SECRET */
+  KEY_ENCRYPTION_SECRET?: string;
   /** RSA private key as a JWK, set with: wrangler secret put JWT_PRIVATE_KEY */
   JWT_PRIVATE_KEY?: string;
   GOOGLE_CLIENT_ID?: string;

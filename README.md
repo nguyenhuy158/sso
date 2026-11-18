@@ -20,7 +20,7 @@ at `auth.huyab.cfd`; every other app reads the resulting cookie.
 | `GET /me` | current session as JSON, or 401 |
 | `GET /.well-known/jwks.json` | public keys for verification |
 | `POST /token` | `Authorization: Bearer <auth key>` returns a 1 hour JWT for CLIs |
-| `POST /keys`, `GET /keys`, `DELETE /keys/:id` | make, list and revoke auth keys (signed-in `ADMIN_EMAIL` only) |
+| `POST /keys`, `GET /keys`, `GET /keys/:id/secret`, `DELETE /keys/:id` | make, list, show again and revoke auth keys (signed-in `ADMIN_EMAIL` only) |
 
 `redirect_uri` is only honoured for `https` URLs inside `huyab.cfd`; anything
 else falls back to this service's own page, so the login endpoint cannot be used
@@ -28,17 +28,19 @@ as an open redirect.
 
 ## Auth keys for CLIs
 
-An auth key lets a CLI get a token without Google, like a Tailscale auth key. Only the hash is stored, so the key is shown once: keep it in BWS.
+An auth key lets a CLI get a token without Google, like a Tailscale auth key. Signed in as `ADMIN_EMAIL`, open `https://auth.huyab.cfd`: the **Auth keys** panel makes a key (name, 1-90 days, default 90), copies it, and revokes it. Put the key in BWS.
+
+Keys are looked up by SHA-256 hash. When `KEY_ENCRYPTION_SECRET` is set they are also stored encrypted (AES-GCM), so the admin can copy a key again (`GET /keys/:id/secret`, admin only, active keys only). Without the secret a key is shown once and cannot be recovered. Losing the secret loses the copy button, not the keys.
 
 ```sh
-# 1. Signed in as ADMIN_EMAIL in a browser: make a key (name, 1-365 days, default 90)
+# Same thing without the UI (cookie of the signed-in admin):
 curl -X POST https://auth.huyab.cfd/keys -H 'content-type: application/json' \
   -H "cookie: huyab_sso=<your cookie>" -d '{"label":"mac cli","days":90}'
-# 2. Store the "key" value in BWS. 3. Trade it for a 1 hour JWT:
+# Trade the key for a 1 hour JWT:
 curl -sX POST https://auth.huyab.cfd/token -H "Authorization: Bearer $KEY" | jq -r .access_token
 ```
 
-Send the JWT as `Authorization: Bearer` to any app that reads Bearer (`@huyab/sso`). A key acts as the admin who made it; revoke it with `DELETE /keys/<id>`. First deploy: `pnpm db:remote`, then `wrangler secret put ADMIN_EMAIL`.
+Send the JWT as `Authorization: Bearer` to any app that reads Bearer (`@huyab/sso`). A key acts as the admin who made it. First deploy: `pnpm db:remote`, then `wrangler secret put ADMIN_EMAIL` and `wrangler secret put KEY_ENCRYPTION_SECRET`.
 
 ## Setup
 

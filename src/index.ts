@@ -2,6 +2,7 @@ import { type Context, Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import {
   createAuthKey,
+  getSealedKey,
   listAuthKeys,
   MAX_LABEL_LENGTH,
   parseKeyDays,
@@ -26,6 +27,7 @@ import {
   verifySession,
 } from "./jwt";
 import { landingPage } from "./page";
+import { open } from "./secret-box";
 import { type SsoUser, upsertUser } from "./users";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -177,6 +179,7 @@ app.post("/keys", async (c) => {
   const { key, summary } = await createAuthKey(c.env.DB, admin, {
     label,
     days,
+    encryptionSecret: c.env.KEY_ENCRYPTION_SECRET,
   });
   c.header("Cache-Control", "no-store");
   return c.json({ key, ...summary }, 201);
@@ -186,6 +189,22 @@ app.get("/keys", async (c) => {
   const admin = await requireAdmin(c);
   if (admin instanceof Response) return admin;
   return c.json({ keys: await listAuthKeys(c.env.DB) });
+});
+
+/** Shows a stored key again. Active keys made while KEY_ENCRYPTION_SECRET was set only. */
+app.get("/keys/:id/secret", async (c) => {
+  const admin = await requireAdmin(c);
+  if (admin instanceof Response) return admin;
+  const id = c.req.param("id");
+  const sealed = await getSealedKey(c.env.DB, id);
+  const key =
+    sealed && c.env.KEY_ENCRYPTION_SECRET
+      ? await open(c.env.KEY_ENCRYPTION_SECRET, sealed)
+      : null;
+  c.header("Cache-Control", "no-store");
+  if (!key) return c.json({ error: "not_available" }, 404);
+  console.log("auth_key_revealed", id);
+  return c.json({ key });
 });
 
 app.delete("/keys/:id", async (c) => {
@@ -233,7 +252,10 @@ app.post("/logout", logout);
 app.get("/", async (c) => {
   const token = getCookie(c, SESSION_COOKIE);
   const claims = token ? await verifySession(c.env, token) : null;
-  return c.html(landingPage({ issuer: c.env.ISSUER, claims }));
+  const isAdmin =
+    !!claims?.email &&
+    claims.email.toLowerCase() === c.env.ADMIN_EMAIL?.toLowerCase();
+  return c.html(landingPage({ issuer: c.env.ISSUER, claims, isAdmin }));
 });
 
 app.notFound((c) => c.text("Not found", 404));
