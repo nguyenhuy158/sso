@@ -86,6 +86,13 @@ export function App() {
   return (
     <main className="flex min-h-dvh items-center justify-center bg-bg p-4">
       <Card className={`w-full text-center ${wide ? "max-w-lg" : "max-w-sm"}`}>
+        <img
+          src="/icon-192.png"
+          alt=""
+          width={72}
+          height={72}
+          className="mx-auto mb-3 rounded-2xl"
+        />
         <h1 className="text-xl font-bold text-fg">huyab.cfd SSO</h1>
         {state.status === "loading" && (
           <div className="mt-6 flex justify-center">
