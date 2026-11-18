@@ -8,6 +8,7 @@ import { type AuthKey, createKey, listKeys, revealKey, revokeKey } from "./api";
 import { Alert, type AlertTone } from "./ui/Alert";
 import { Badge } from "./ui/Badge";
 import { Button } from "./ui/Button";
+import { useConfirm } from "./ui/ConfirmProvider";
 import { Input } from "./ui/Input";
 
 const COPIED_FEEDBACK_MS = 1200;
@@ -52,6 +53,7 @@ function CopyButton({
 }
 
 export function KeysPanel() {
+  const confirm = useConfirm();
   const [keys, setKeys] = useState<AuthKey[] | null>(null);
   const [label, setLabel] = useState("");
   const [days, setDays] = useState(DEFAULT_KEY_DAYS);
@@ -97,7 +99,13 @@ export function KeysPanel() {
   };
 
   const revoke = async (key: AuthKey) => {
-    if (!confirm(`Revoke ${key.label}? CLIs using it stop working.`)) return;
+    const yes = await confirm({
+      title: `Revoke ${key.label}?`,
+      description: "CLIs using this key stop working.",
+      confirmLabel: "Revoke",
+      destructive: true,
+    });
+    if (!yes) return;
     try {
       await revokeKey(key.id);
       await load();

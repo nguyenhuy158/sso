@@ -1,0 +1,161 @@
+import { type ReactNode, useId } from "react";
+import { createPortal } from "react-dom";
+import { Button } from "./Button";
+import { cn } from "./cn";
+import { useOverlay } from "./use-overlay";
+import { motion, usePresence } from "./use-presence";
+
+export type ModalProps = {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  description?: string;
+  /** Nut o chan hop thoai. Bo trong thi khong ve chan. */
+  footer?: ReactNode;
+  size?: "sm" | "md" | "lg";
+  children?: ReactNode;
+};
+
+const SIZE = { sm: "max-w-sm", md: "max-w-md", lg: "max-w-lg" };
+
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  footer,
+  size = "md",
+  children,
+}: ModalProps) {
+  const ref = useOverlay(open, onClose);
+  const titleId = useId();
+  const descId = useId();
+  const { mounted, closing } = usePresence(open);
+  // Hop xac nhan khong co noi dung: bo than va vien thua de khong co dai trong.
+  const hasBody =
+    children !== undefined && children !== null && children !== false;
+
+  if (!mounted) return null;
+
+  return createPortal(
+    <div
+      className={cn(
+        "fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4",
+        closing && "pointer-events-none",
+      )}
+      style={{
+        animation: motion(
+          closing,
+          "ui-fade-in var(--ui-dur-fast) var(--ui-ease-out)",
+          "ui-fade-out var(--ui-dur-fast) var(--ui-ease-in)",
+        ),
+      }}
+    >
+      {/* Lop mo phia sau. aria-hidden vi noi dung cua no la trang thai, khong phai chu. */}
+      <div
+        aria-hidden="true"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+      />
+
+      <div
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={description ? descId : undefined}
+        tabIndex={-1}
+        style={{
+          animation: motion(
+            closing,
+            "ui-zoom-in var(--ui-dur) var(--ui-ease-out)",
+            "ui-zoom-out var(--ui-dur-fast) var(--ui-ease-in)",
+          ),
+        }}
+        className={cn(
+          "relative flex max-h-[90dvh] w-full flex-col rounded-t-2xl bg-surface shadow-xl outline-none sm:rounded-ui",
+          SIZE[size],
+        )}
+      >
+        <div
+          className={cn(
+            "px-4 py-3",
+            (hasBody || !footer) && "border-b border-border",
+          )}
+        >
+          <h2 id={titleId} className="text-base font-semibold text-fg">
+            {title}
+          </h2>
+          {description && (
+            <p id={descId} className="mt-1 text-xs text-fg-muted">
+              {description}
+            </p>
+          )}
+        </div>
+
+        {hasBody && (
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+            {children}
+          </div>
+        )}
+
+        {footer && (
+          <div className="safe-bottom flex justify-end gap-2 border-t border-border px-4 py-3">
+            {footer}
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+export type ConfirmDialogProps = {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  description?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  /** Bat khi hanh dong khong hoan tac duoc (xoa, huy...). */
+  destructive?: boolean;
+  loading?: boolean;
+};
+
+/** Hop thoai xac nhan: dung thay cho window.confirm de con style va con chan Esc. */
+export function ConfirmDialog({
+  open,
+  onClose,
+  onConfirm,
+  title,
+  description,
+  confirmLabel = "Xác nhận",
+  cancelLabel = "Huỷ",
+  destructive = false,
+  loading = false,
+}: ConfirmDialogProps) {
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={title}
+      description={description}
+      size="sm"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={loading}>
+            {cancelLabel}
+          </Button>
+          <Button
+            variant={destructive ? "danger" : "primary"}
+            onClick={onConfirm}
+            loading={loading}
+          >
+            {confirmLabel}
+          </Button>
+        </>
+      }
+    />
+  );
+}
