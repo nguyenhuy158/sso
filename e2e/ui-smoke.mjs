@@ -293,8 +293,12 @@ try {
     () => document.documentElement.scrollHeight <= window.innerHeight,
   );
   if (!fits) throw new Error("the admin page scrolls the viewport");
-  page.once("dialog", (dialog) => dialog.accept());
   await page.click("li:has-text('ui key') button:has-text('Revoke')");
+  const revokeDialog = page.getByRole("dialog", { name: /^Revoke ui key/ });
+  await revokeDialog.waitFor(WAIT);
+  await revokeDialog
+    .getByRole("button", { name: "Revoke", exact: true })
+    .click();
   await page.waitForSelector("li:has-text('ui key'):has-text('revoked')", WAIT);
   ok("admin panel creates, lists and revokes a key within one viewport");
 } catch (error) {
