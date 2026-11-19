@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Env } from "./env";
+import { redeemAppCode, s256, sealAppCode } from "./app-login";
+import { appReturnUrl, type Env, isAppReturnUrl } from "./env";
 import app from "./index";
+import { APP_TOKEN_USE, buildClaims, signSession } from "./jwt";
 
 const ORIGIN = "https://auth.test";
 
@@ -72,5 +74,119 @@ describe("existing routes", () => {
     const response = await call("/nope", healthyEnv);
     expect(response.status).toBe(404);
     expect(await response.text()).toBe("Not found");
+  });
+});
+
+describe("native app login", () => {
+  const APP_URI = "huyab-home://auth";
+  const VERIFIER = "v".repeat(64);
+  const SIGNING_KEY = "test-signing-key";
+  const appEnv = {
+    ...healthyEnv,
+    ALLOWED_APP_REDIRECTS: `other://x, ${APP_URI}`,
+    GOOGLE_CLIENT_ID: "client",
+    GOOGLE_CLIENT_SECRET: "secret",
+    JWT_PRIVATE_KEY: SIGNING_KEY,
+  } as Env;
+  const login = async (redirect: string, challenge?: string) => {
+    const query = new URLSearchParams({ redirect_uri: redirect });
+    if (challenge) query.set("code_challenge", challenge);
+    return call(`/login?${query}`, appEnv);
+  };
+  const redeem = (body: unknown) =>
+    app.fetch(
+      new Request(`${ORIGIN}/app-token`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+      appEnv,
+    );
+
+  it("remembers an allow-listed app URI and its challenge", async () => {
+    const challenge = await s256(VERIFIER);
+    const response = await login(APP_URI, challenge);
+    const cookies = response.headers.get("set-cookie") ?? "";
+    expect(response.status).toBe(302);
+    expect(cookies).toContain(`sso_return=${encodeURIComponent(APP_URI)}`);
+    expect(cookies).toContain(`sso_app_challenge=${challenge}`);
+  });
+
+  it("refuses app sign-in without a PKCE challenge", async () => {
+    expect((await login(APP_URI)).status).toBe(400);
+    expect((await login(APP_URI, "short")).status).toBe(400);
+  });
+
+  it("falls back to the issuer for app URIs not on the list", async () => {
+    const cookies =
+      (await login("evil-app://auth", await s256(VERIFIER))).headers.get(
+        "set-cookie",
+      ) ?? "";
+    expect(cookies).not.toContain("evil-app");
+    expect(cookies).not.toContain("sso_app_challenge");
+    expect(cookies).toContain(`sso_return=${encodeURIComponent(ORIGIN)}`);
+  });
+
+  it("matches allow-listed URIs exactly", () => {
+    expect(isAppReturnUrl(appEnv, `${APP_URI}/extra`)).toBe(false);
+    expect(isAppReturnUrl(healthyEnv, APP_URI)).toBe(false);
+    expect(appReturnUrl(APP_URI, "abc")).toBe(`${APP_URI}?code=abc`);
+  });
+
+  it("trades a code for the token only with the matching verifier", async () => {
+    const code = await sealAppCode(SIGNING_KEY, "jwt", await s256(VERIFIER));
+    expect((await redeem({ code, code_verifier: "x".repeat(64) })).status).toBe(
+      400,
+    );
+    const response = await redeem({ code, code_verifier: VERIFIER });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      access_token: "jwt",
+      token_type: "Bearer",
+    });
+  });
+
+  it("rejects expired, forged and malformed codes", async () => {
+    const challenge = await s256(VERIFIER);
+    const old = await sealAppCode(SIGNING_KEY, "jwt", challenge, 0);
+    expect(await redeemAppCode(SIGNING_KEY, old, VERIFIER)).toBeNull();
+    const forged = await sealAppCode("other-key", "jwt", challenge);
+    expect(await redeemAppCode(SIGNING_KEY, forged, VERIFIER)).toBeNull();
+    expect((await redeem({ code: 1 })).status).toBe(400);
+  });
+});
+
+describe("app tokens", () => {
+  it("cannot manage auth keys even for the admin", async () => {
+    const pair = (await crypto.subtle.generateKey(
+      {
+        name: "RSASSA-PKCS1-v1_5",
+        modulusLength: 2048,
+        publicExponent: new Uint8Array([1, 0, 1]),
+        hash: "SHA-256",
+      },
+      true,
+      ["sign", "verify"],
+    )) as CryptoKeyPair;
+    const jwk = await crypto.subtle.exportKey("jwk", pair.privateKey);
+    const env = {
+      ...healthyEnv,
+      ADMIN_EMAIL: "admin@test",
+      JWT_PRIVATE_KEY: JSON.stringify(jwk),
+    } as Env;
+    const who = { sub: "1", email: "admin@test", name: null, picture: null };
+    const keysWith = async (claims: object) =>
+      app.fetch(
+        new Request(`${ORIGIN}/keys`, {
+          headers: {
+            cookie: `huyab_sso=${await signSession(env, claims as never)}`,
+          },
+        }),
+        env,
+      );
+    const claims = buildClaims(env, who, 60);
+    expect((await keysWith(claims)).status).not.toBe(401);
+    expect(
+      (await keysWith({ ...claims, token_use: APP_TOKEN_USE })).status,
+    ).toBe(401);
   });
 });
