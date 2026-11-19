@@ -12,6 +12,16 @@ import {
 } from "./auth-keys";
 import { BUILD_INFO } from "./build-info";
 import {
+  DEVICE_CODE_TTL_SECONDS,
+  DEVICE_GRANT_TYPE,
+  DEVICE_POLL_INTERVAL_SECONDS,
+  decideDevice,
+  pendingDevice,
+  pollDevice,
+  startDevice,
+} from "./device";
+import { d1DeviceStore } from "./device-store";
+import {
   APP_CHALLENGE_COOKIE,
   APP_SESSION_TTL_SECONDS,
   AUTH_KEY_TOKEN_TTL_SECONDS,
@@ -194,20 +204,36 @@ app.get("/me", async (c) => {
 });
 
 const BEARER = /^Bearer\s+(.+)$/i;
+const JSON_CONTENT_TYPE = "application/json";
+const FORM_CONTENT_TYPE = "application/x-www-form-urlencoded";
+const DEVICE_PAGE_FLAG = "device";
+const USER_CODE_PARAM = "user_code";
 
 function isAdminEmail(env: Env, email: string | null | undefined): boolean {
   return !!email && email.toLowerCase() === env.ADMIN_EMAIL?.toLowerCase();
 }
+
+async function requireBrowserSession(
+  c: Context<{ Bindings: Env }>,
+): Promise<SessionClaims | Response> {
+  const token = getCookie(c, SESSION_COOKIE);
+  const claims = token ? await verifySession(c.env, token) : null;
+  if (!claims || claims.token_use === APP_TOKEN_USE)
+    return c.json({ error: "unauthorized" }, 401);
+  return claims;
+}
+
+const isJsonRequest = (c: Context<{ Bindings: Env }>) =>
+  c.req.header("content-type")?.toLowerCase().startsWith(JSON_CONTENT_TYPE) ??
+  false;
 
 /** Signed-in admin from the cookie, or the error response to return. */
 async function requireAdmin(
   c: Context<{ Bindings: Env }>,
 ): Promise<SessionClaims | Response> {
   if (!c.env.ADMIN_EMAIL) return c.json({ error: "auth_keys_disabled" }, 503);
-  const token = getCookie(c, SESSION_COOKIE);
-  const claims = token ? await verifySession(c.env, token) : null;
-  if (!claims || claims.token_use === APP_TOKEN_USE)
-    return c.json({ error: "unauthorized" }, 401);
+  const claims = await requireBrowserSession(c);
+  if (claims instanceof Response) return claims;
   if (!isAdminEmail(c.env, claims.email)) {
     return c.json({ error: "forbidden" }, 403);
   }
@@ -219,11 +245,7 @@ app.post("/keys", async (c) => {
   const admin = await requireAdmin(c);
   if (admin instanceof Response) return admin;
   // JSON only: a cross-site form cannot send this content type with the cookie.
-  if (
-    !c.req.header("content-type")?.toLowerCase().startsWith("application/json")
-  ) {
-    return c.json({ error: "expected_json" }, 415);
-  }
+  if (!isJsonRequest(c)) return c.json({ error: "expected_json" }, 415);
   const body = await c.req
     .json<{ label?: unknown; days?: unknown }>()
     .catch(() => null);
@@ -310,6 +332,102 @@ app.post("/app-token", async (c) => {
   if (!token) return c.json({ error: "invalid_code" }, 400);
   return c.json({
     access_token: token,
+    token_type: "Bearer",
+    expires_in: APP_SESSION_TTL_SECONDS,
+  });
+});
+
+async function readFields(
+  c: Context<{ Bindings: Env }>,
+): Promise<Record<string, unknown>> {
+  const type = c.req.header("content-type")?.toLowerCase() ?? "";
+  if (type.startsWith(FORM_CONTENT_TYPE))
+    return (await c.req.parseBody().catch(() => ({}))) as Record<
+      string,
+      unknown
+    >;
+  return (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+}
+
+const devicePage = (env: Env) => `${env.ISSUER}/device`;
+
+app.post("/device/code", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const fields = await readFields(c);
+  const { deviceCode, userCode } = await startDevice(
+    d1DeviceStore(c.env.DB),
+    fields.client_name,
+  );
+  const verificationUri = devicePage(c.env);
+  return c.json({
+    device_code: deviceCode,
+    user_code: userCode,
+    verification_uri: verificationUri,
+    verification_uri_complete: `${verificationUri}?${USER_CODE_PARAM}=${userCode}`,
+    expires_in: DEVICE_CODE_TTL_SECONDS,
+    interval: DEVICE_POLL_INTERVAL_SECONDS,
+  });
+});
+
+app.get("/device", (c) => {
+  const target = new URLSearchParams({ [DEVICE_PAGE_FLAG]: "" });
+  const userCode = c.req.query(USER_CODE_PARAM);
+  if (userCode) target.set(USER_CODE_PARAM, userCode);
+  return c.redirect(`/?${target}`, 302);
+});
+
+app.post("/device/lookup", async (c) => {
+  const session = await requireBrowserSession(c);
+  if (session instanceof Response) return session;
+  if (!isJsonRequest(c)) return c.json({ error: "expected_json" }, 415);
+  const { user_code } = await readFields(c);
+  const row =
+    typeof user_code === "string"
+      ? await pendingDevice(d1DeviceStore(c.env.DB), user_code)
+      : null;
+  if (!row) return c.json({ error: "invalid_code" }, 404);
+  return c.json({ user_code: row.user_code, client_name: row.client_name });
+});
+
+app.post("/device/approve", async (c) => {
+  const session = await requireBrowserSession(c);
+  if (session instanceof Response) return session;
+  if (!isJsonRequest(c)) return c.json({ error: "expected_json" }, 415);
+  const { user_code, allow } = await readFields(c);
+  if (typeof user_code !== "string" || typeof allow !== "boolean")
+    return c.json({ error: "invalid_request" }, 400);
+  const decided = await decideDevice(
+    d1DeviceStore(c.env.DB),
+    user_code,
+    {
+      sub: session.sub,
+      email: session.email,
+      name: session.name,
+      picture: session.picture,
+    },
+    allow,
+  );
+  if (!decided) return c.json({ error: "invalid_code" }, 404);
+  console.log(allow ? "device_approved" : "device_denied", session.sub);
+  return c.json({ allowed: allow });
+});
+
+app.post("/device/token", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const { grant_type, device_code } = await readFields(c);
+  if (grant_type !== DEVICE_GRANT_TYPE)
+    return c.json({ error: "unsupported_grant_type" }, 400);
+  if (typeof device_code !== "string")
+    return c.json({ error: "invalid_request" }, 400);
+  const result = await pollDevice(d1DeviceStore(c.env.DB), device_code);
+  if (result.status !== "approved")
+    return c.json({ error: result.status }, 400);
+  const accessToken = await signSession(c.env, {
+    ...buildClaims(c.env, result.identity, APP_SESSION_TTL_SECONDS),
+    token_use: APP_TOKEN_USE,
+  });
+  return c.json({
+    access_token: accessToken,
     token_type: "Bearer",
     expires_in: APP_SESSION_TTL_SECONDS,
   });

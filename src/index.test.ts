@@ -190,3 +190,40 @@ describe("app tokens", () => {
     ).toBe(401);
   });
 });
+
+describe("device routes", () => {
+  it("sends /device to the landing page with the code", async () => {
+    const response = await call("/device?user_code=BCDF-GHJK", healthyEnv);
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      "/?device=&user_code=BCDF-GHJK",
+    );
+  });
+
+  it("rejects a token request with another grant type", async () => {
+    const response = await app.fetch(
+      new Request(`${ORIGIN}/device/token`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: "grant_type=password&device_code=x",
+      }),
+      healthyEnv,
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "unsupported_grant_type" });
+  });
+
+  it("needs a browser session to look up or approve a code", async () => {
+    for (const path of ["/device/lookup", "/device/approve"]) {
+      const response = await app.fetch(
+        new Request(ORIGIN + path, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ user_code: "BCDF-GHJK", allow: true }),
+        }),
+        healthyEnv,
+      );
+      expect(response.status).toBe(401);
+    }
+  });
+});

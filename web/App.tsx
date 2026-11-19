@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { loadSession, PATHS, type Session } from "./api";
+import { DevicePanel, isDevicePage } from "./DevicePanel";
 import { KeysPanel } from "./KeysPanel";
 import { Alert } from "./ui/Alert";
 import { Avatar } from "./ui/Avatar";
@@ -44,14 +45,19 @@ function SignedIn({ session }: { session: Session }) {
 }
 
 function SignedOut() {
+  const login = isDevicePage()
+    ? `${PATHS.login}?${new URLSearchParams({ redirect_uri: window.location.href })}`
+    : PATHS.login;
   return (
     <>
       <p className="mt-2 text-sm text-fg-muted">
-        Single sign-on for every app on huyab.cfd.
+        {isDevicePage()
+          ? "Sign in to connect a device."
+          : "Single sign-on for every app on huyab.cfd."}
       </p>
       <a
         className={`${LINK_BUTTON} bg-primary text-primary-fg hover:bg-primary-hover`}
-        href={PATHS.login}
+        href={login}
       >
         Sign in with Google
       </a>
@@ -93,7 +99,9 @@ export function App() {
           height={72}
           className="mx-auto mb-3 rounded-2xl"
         />
-        <h1 className="text-xl font-bold text-fg">huyab.cfd SSO</h1>
+        <h1 className="text-xl font-bold text-fg">
+          {isDevicePage() ? "Connect a device" : "huyab.cfd SSO"}
+        </h1>
         {state.status === "loading" && (
           <div className="mt-6 flex justify-center">
             <Spinner />
@@ -106,11 +114,17 @@ export function App() {
         )}
         {state.status === "ready" &&
           (state.session ? (
-            <SignedIn session={state.session} />
+            isDevicePage() ? (
+              <DevicePanel
+                email={state.session.user.email ?? state.session.user.id}
+              />
+            ) : (
+              <SignedIn session={state.session} />
+            )
           ) : (
             <SignedOut />
           ))}
-        {!wide && state.status === "ready" && <Hint />}
+        {!wide && !isDevicePage() && state.status === "ready" && <Hint />}
       </Card>
     </main>
   );

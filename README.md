@@ -19,6 +19,9 @@ at `auth.huyab.cfd`; every other app reads the resulting cookie.
 | `GET /logout?redirect_uri=<url>` | clears the cookie, signing out of every app |
 | `GET /me` | current session as JSON, or 401 |
 | `GET /.well-known/jwks.json` | public keys for verification |
+| `POST /device/code` | starts a device sign-in (RFC 8628): `device_code`, `user_code`, `verification_uri` |
+| `GET /device` | page where a signed-in user enters the code and approves or denies |
+| `POST /device/token` | `grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code=…`; polls until a 30 day JWT |
 | `POST /app-token` | `{code, code_verifier}` from a native app sign-in returns a 30 day JWT |
 | `POST /token` | `Authorization: Bearer <auth key>` returns a 1 hour JWT for CLIs |
 | `POST /keys`, `GET /keys`, `GET /keys/:id/secret`, `DELETE /keys/:id` | make, list, show again and revoke auth keys (signed-in `ADMIN_EMAIL` only) |
@@ -34,6 +37,20 @@ with the URI listed exactly in `ALLOWED_APP_REDIRECTS` (`wrangler.jsonc`, comma-
 browser goes to `<app URI>?code=<code>`; the code is sealed, lives 60 s and only `POST /app-token`
 `{"code","code_verifier"}` turns it into a 30-day JWT. Another app that claims the same URI scheme gets a
 code it cannot redeem.
+
+## Device sign-in
+
+For TVs, CLIs and anything without a browser, like `github.com/login/device`: the device calls
+`POST /device/code` (`client_name` optional), shows `user_code` and `verification_uri`, then polls
+`POST /device/token` every `interval` seconds. The user opens `auth.huyab.cfd/device`, signs in and
+approves; the next poll returns the JWT (`token_use: app`, same as native apps). Codes last 15
+minutes, only the device code's SHA-256 is stored (`sso_device_codes`), and it can be redeemed once.
+
+```sh
+curl -sX POST https://auth.huyab.cfd/device/code -d client_name=mac-cli
+curl -sX POST https://auth.huyab.cfd/device/token \
+  -d grant_type=urn:ietf:params:oauth:grant-type:device_code -d device_code=$DEVICE_CODE
+```
 
 ## Auth keys for CLIs
 

@@ -4,6 +4,8 @@ export const PATHS = {
   logout: "/logout",
   keys: "/keys",
   jwks: "/.well-known/jwks.json",
+  deviceLookup: "/device/lookup",
+  deviceApprove: "/device/approve",
 } as const;
 
 const JSON_CONTENT_TYPE = "application/json";
@@ -66,4 +68,22 @@ export const revealKey = (id: string) =>
 export const revokeKey = (id: string) =>
   request<{ revoked: boolean }>(`${PATHS.keys}/${encodeURIComponent(id)}`, {
     method: "DELETE",
+  });
+
+export type DeviceRequest = { user_code: string; client_name: string };
+
+const postJson = <T>(path: string, body: unknown) =>
+  request<T>(path, {
+    method: "POST",
+    headers: { "content-type": JSON_CONTENT_TYPE },
+    body: JSON.stringify(body),
+  });
+
+export const lookupDevice = (userCode: string) =>
+  postJson<DeviceRequest>(PATHS.deviceLookup, { user_code: userCode });
+
+export const decideDevice = (userCode: string, allow: boolean) =>
+  postJson<{ allowed: boolean }>(PATHS.deviceApprove, {
+    user_code: userCode,
+    allow,
   });
