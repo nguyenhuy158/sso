@@ -1,5 +1,6 @@
 import { type Context, Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import { isCodeChallenge, redeemAppCode, sealAppCode } from "./app-login";
 import {
   createAuthKey,
   getSealedKey,
@@ -11,12 +12,15 @@ import {
 } from "./auth-keys";
 import { BUILD_INFO } from "./build-info";
 import {
+  APP_CHALLENGE_COOKIE,
+  APP_SESSION_TTL_SECONDS,
   AUTH_KEY_TOKEN_TTL_SECONDS,
   appReturnUrl,
   type Env,
   isAllowedReturnUrl,
   isAppReturnUrl,
   RETURN_COOKIE,
+  required,
   SESSION_COOKIE,
   STATE_COOKIE,
   sessionTtl,
@@ -63,11 +67,6 @@ app.get("/login", (c) => {
     return c.text("Google sign-in is not configured", 503);
 
   const requested = c.req.query("redirect_uri");
-  const returnTo =
-    requested &&
-    (isAllowedReturnUrl(c.env, requested) || isAppReturnUrl(c.env, requested))
-      ? requested
-      : c.env.ISSUER;
   const secure = {
     httpOnly: true,
     secure: true,
@@ -75,6 +74,17 @@ app.get("/login", (c) => {
     path: "/",
     maxAge: 600,
   } as const;
+  const forApp = requested !== undefined && isAppReturnUrl(c.env, requested);
+  if (forApp) {
+    const challenge = c.req.query("code_challenge");
+    if (!isCodeChallenge(challenge))
+      return c.text("code_challenge (S256) is required for app sign-in", 400);
+    setCookie(c, APP_CHALLENGE_COOKIE, challenge, secure);
+  }
+  const returnTo =
+    forApp || (requested && isAllowedReturnUrl(c.env, requested))
+      ? requested
+      : c.env.ISSUER;
 
   // The state is mirrored in a cookie so the callback can prove the flow started
   // in this browser rather than being replayed by someone else.
@@ -94,8 +104,10 @@ app.get("/callback", async (c) => {
 
   const expectedState = getCookie(c, STATE_COOKIE);
   const returnTo = getCookie(c, RETURN_COOKIE) ?? c.env.ISSUER;
+  const appChallenge = getCookie(c, APP_CHALLENGE_COOKIE);
   deleteCookie(c, STATE_COOKIE, { path: "/" });
   deleteCookie(c, RETURN_COOKIE, { path: "/" });
+  deleteCookie(c, APP_CHALLENGE_COOKIE, { path: "/" });
 
   const state = c.req.query("state");
   if (!expectedState || !state || state !== expectedState) {
@@ -133,8 +145,21 @@ app.get("/callback", async (c) => {
     maxAge: ttl,
   });
 
-  if (isAppReturnUrl(c.env, returnTo)) {
-    return c.redirect(appReturnUrl(returnTo, token), 302);
+  if (isAppReturnUrl(c.env, returnTo) && isCodeChallenge(appChallenge)) {
+    const appToken = await signSession(
+      c.env,
+      buildClaims(
+        c.env,
+        { ...user, sub: String(user.id) },
+        APP_SESSION_TTL_SECONDS,
+      ),
+    );
+    const code = await sealAppCode(
+      required(c.env.JWT_PRIVATE_KEY, "JWT_PRIVATE_KEY"),
+      appToken,
+      appChallenge,
+    );
+    return c.redirect(appReturnUrl(returnTo, code), 302);
   }
   return c.redirect(
     isAllowedReturnUrl(c.env, returnTo) ? returnTo : c.env.ISSUER,
@@ -263,6 +288,28 @@ app.post("/token", async (c) => {
     access_token: accessToken,
     token_type: "Bearer",
     expires_in: AUTH_KEY_TOKEN_TTL_SECONDS,
+  });
+});
+
+app.post("/app-token", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const body = await c.req
+    .json<{ code?: unknown; code_verifier?: unknown }>()
+    .catch(() => ({}) as { code?: unknown; code_verifier?: unknown });
+  const { code, code_verifier: verifier } = body;
+  const token =
+    typeof code === "string" && typeof verifier === "string"
+      ? await redeemAppCode(
+          required(c.env.JWT_PRIVATE_KEY, "JWT_PRIVATE_KEY"),
+          code,
+          verifier,
+        )
+      : null;
+  if (!token) return c.json({ error: "invalid_code" }, 400);
+  return c.json({
+    access_token: token,
+    token_type: "Bearer",
+    expires_in: APP_SESSION_TTL_SECONDS,
   });
 });
 

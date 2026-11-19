@@ -19,6 +19,7 @@ at `auth.huyab.cfd`; every other app reads the resulting cookie.
 | `GET /logout?redirect_uri=<url>` | clears the cookie, signing out of every app |
 | `GET /me` | current session as JSON, or 401 |
 | `GET /.well-known/jwks.json` | public keys for verification |
+| `POST /app-token` | `{code, code_verifier}` from a native app sign-in returns a 30 day JWT |
 | `POST /token` | `Authorization: Bearer <auth key>` returns a 1 hour JWT for CLIs |
 | `POST /keys`, `GET /keys`, `GET /keys/:id/secret`, `DELETE /keys/:id` | make, list, show again and revoke auth keys (signed-in `ADMIN_EMAIL` only) |
 | `GET /api/version` | public build info (commit, branch, builtAt) |
@@ -28,9 +29,11 @@ at `auth.huyab.cfd`; every other app reads the resulting cookie.
 else falls back to this service's own page, so the login endpoint cannot be used
 as an open redirect.
 
-Native apps sign in through `/login?redirect_uri=<app URI>` when the URI is listed
-exactly in `ALLOWED_APP_REDIRECTS` (`wrangler.jsonc`, comma-separated). After Google
-the browser goes to `<app URI>?sso=<jwt>`, so the app can send it as `Authorization: Bearer`.
+Native apps sign in with PKCE (S256): open `/login?redirect_uri=<app URI>&code_challenge=<S256 of verifier>`
+with the URI listed exactly in `ALLOWED_APP_REDIRECTS` (`wrangler.jsonc`, comma-separated). After Google the
+browser goes to `<app URI>?code=<code>`; the code is sealed, lives 60 s and only `POST /app-token`
+`{"code","code_verifier"}` turns it into a 30-day JWT. Another app that claims the same URI scheme gets a
+code it cannot redeem.
 
 ## Auth keys for CLIs
 

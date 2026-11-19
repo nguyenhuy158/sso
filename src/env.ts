@@ -19,7 +19,9 @@ export const SESSION_COOKIE = "huyab_sso";
 export const RETURN_COOKIE = "sso_return";
 export const STATE_COOKIE = "sso_state";
 export const KEY_ID = "sso-1";
-export const APP_TOKEN_PARAM = "sso";
+export const APP_CODE_PARAM = "code";
+export const APP_CHALLENGE_COOKIE = "sso_app_challenge";
+export const APP_SESSION_TTL_SECONDS = 2592000;
 const APP_REDIRECT_SEPARATOR = ",";
 
 /** Reads a required secret; there is deliberately no fallback value. */
@@ -62,8 +64,8 @@ export function isAppReturnUrl(env: Env, candidate: string): boolean {
     .includes(candidate);
 }
 
-export function appReturnUrl(appUri: string, token: string): string {
+export function appReturnUrl(appUri: string, code: string): string {
   const url = new URL(appUri);
-  url.searchParams.set(APP_TOKEN_PARAM, token);
+  url.searchParams.set(APP_CODE_PARAM, code);
   return url.toString();
 }
