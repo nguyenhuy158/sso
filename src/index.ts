@@ -12,8 +12,10 @@ import {
 import { BUILD_INFO } from "./build-info";
 import {
   AUTH_KEY_TOKEN_TTL_SECONDS,
+  appReturnUrl,
   type Env,
   isAllowedReturnUrl,
+  isAppReturnUrl,
   RETURN_COOKIE,
   SESSION_COOKIE,
   STATE_COOKIE,
@@ -62,7 +64,8 @@ app.get("/login", (c) => {
 
   const requested = c.req.query("redirect_uri");
   const returnTo =
-    requested && isAllowedReturnUrl(c.env, requested)
+    requested &&
+    (isAllowedReturnUrl(c.env, requested) || isAppReturnUrl(c.env, requested))
       ? requested
       : c.env.ISSUER;
   const secure = {
@@ -130,6 +133,9 @@ app.get("/callback", async (c) => {
     maxAge: ttl,
   });
 
+  if (isAppReturnUrl(c.env, returnTo)) {
+    return c.redirect(appReturnUrl(returnTo, token), 302);
+  }
   return c.redirect(
     isAllowedReturnUrl(c.env, returnTo) ? returnTo : c.env.ISSUER,
     302,

@@ -28,6 +28,10 @@ at `auth.huyab.cfd`; every other app reads the resulting cookie.
 else falls back to this service's own page, so the login endpoint cannot be used
 as an open redirect.
 
+Native apps sign in through `/login?redirect_uri=<app URI>` when the URI is listed
+exactly in `ALLOWED_APP_REDIRECTS` (`wrangler.jsonc`, comma-separated). After Google
+the browser goes to `<app URI>?sso=<jwt>`, so the app can send it as `Authorization: Bearer`.
+
 ## Auth keys for CLIs
 
 An auth key lets a CLI get a token without Google, like a Tailscale auth key. Signed in as `ADMIN_EMAIL`, open `https://auth.huyab.cfd`: the **Auth keys** panel makes a key (name, 1-90 days, default 90), copies it, and revokes it. Put the key in BWS.

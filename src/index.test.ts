@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Env } from "./env";
+import { appReturnUrl, type Env, isAppReturnUrl } from "./env";
 import app from "./index";
 
 const ORIGIN = "https://auth.test";
@@ -72,5 +72,44 @@ describe("existing routes", () => {
     const response = await call("/nope", healthyEnv);
     expect(response.status).toBe(404);
     expect(await response.text()).toBe("Not found");
+  });
+});
+
+describe("native app login", () => {
+  const APP_URI = "huyab-home://auth";
+  const appEnv = {
+    ...healthyEnv,
+    ALLOWED_APP_REDIRECTS: `other://x, ${APP_URI}`,
+    GOOGLE_CLIENT_ID: "client",
+    GOOGLE_CLIENT_SECRET: "secret",
+  } as Env;
+  const returnCookie = async (redirect: string) => {
+    const response = await call(
+      `/login?redirect_uri=${encodeURIComponent(redirect)}`,
+      appEnv,
+    );
+    expect(response.status).toBe(302);
+    return response.headers.get("set-cookie") ?? "";
+  };
+
+  it("remembers an allow-listed app URI as the return target", async () => {
+    expect(await returnCookie(APP_URI)).toContain(
+      `sso_return=${encodeURIComponent(APP_URI)}`,
+    );
+  });
+
+  it("falls back to the issuer for app URIs not on the list", async () => {
+    const cookie = await returnCookie("evil-app://auth");
+    expect(cookie).not.toContain("evil-app");
+    expect(cookie).toContain(`sso_return=${encodeURIComponent(ORIGIN)}`);
+  });
+
+  it("does not accept a prefix of an allow-listed URI", async () => {
+    expect(isAppReturnUrl(appEnv, `${APP_URI}/extra`)).toBe(false);
+    expect(isAppReturnUrl(healthyEnv, APP_URI)).toBe(false);
+  });
+
+  it("hands the token to the app as the sso query parameter", () => {
+    expect(appReturnUrl(APP_URI, "a.b.c")).toBe(`${APP_URI}?sso=a.b.c`);
   });
 });
