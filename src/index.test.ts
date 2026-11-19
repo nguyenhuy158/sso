@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { redeemAppCode, s256, sealAppCode } from "./app-login";
 import { appReturnUrl, type Env, isAppReturnUrl } from "./env";
 import app from "./index";
+import { APP_TOKEN_USE, buildClaims, signSession } from "./jwt";
 
 const ORIGIN = "https://auth.test";
 
@@ -151,5 +152,41 @@ describe("native app login", () => {
     const forged = await sealAppCode("other-key", "jwt", challenge);
     expect(await redeemAppCode(SIGNING_KEY, forged, VERIFIER)).toBeNull();
     expect((await redeem({ code: 1 })).status).toBe(400);
+  });
+});
+
+describe("app tokens", () => {
+  it("cannot manage auth keys even for the admin", async () => {
+    const pair = (await crypto.subtle.generateKey(
+      {
+        name: "RSASSA-PKCS1-v1_5",
+        modulusLength: 2048,
+        publicExponent: new Uint8Array([1, 0, 1]),
+        hash: "SHA-256",
+      },
+      true,
+      ["sign", "verify"],
+    )) as CryptoKeyPair;
+    const jwk = await crypto.subtle.exportKey("jwk", pair.privateKey);
+    const env = {
+      ...healthyEnv,
+      ADMIN_EMAIL: "admin@test",
+      JWT_PRIVATE_KEY: JSON.stringify(jwk),
+    } as Env;
+    const who = { sub: "1", email: "admin@test", name: null, picture: null };
+    const keysWith = async (claims: object) =>
+      app.fetch(
+        new Request(`${ORIGIN}/keys`, {
+          headers: {
+            cookie: `huyab_sso=${await signSession(env, claims as never)}`,
+          },
+        }),
+        env,
+      );
+    const claims = buildClaims(env, who, 60);
+    expect((await keysWith(claims)).status).not.toBe(401);
+    expect(
+      (await keysWith({ ...claims, token_use: APP_TOKEN_USE })).status,
+    ).toBe(401);
   });
 });

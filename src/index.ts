@@ -27,6 +27,7 @@ import {
 } from "./env";
 import { authorizationUrl, exchangeCode, googleConfigured } from "./google";
 import {
+  APP_TOKEN_USE,
   buildClaims,
   publicJwks,
   type SessionClaims,
@@ -146,14 +147,14 @@ app.get("/callback", async (c) => {
   });
 
   if (isAppReturnUrl(c.env, returnTo) && isCodeChallenge(appChallenge)) {
-    const appToken = await signSession(
-      c.env,
-      buildClaims(
+    const appToken = await signSession(c.env, {
+      ...buildClaims(
         c.env,
         { ...user, sub: String(user.id) },
         APP_SESSION_TTL_SECONDS,
       ),
-    );
+      token_use: APP_TOKEN_USE,
+    });
     const code = await sealAppCode(
       required(c.env.JWT_PRIVATE_KEY, "JWT_PRIVATE_KEY"),
       appToken,
@@ -205,7 +206,8 @@ async function requireAdmin(
   if (!c.env.ADMIN_EMAIL) return c.json({ error: "auth_keys_disabled" }, 503);
   const token = getCookie(c, SESSION_COOKIE);
   const claims = token ? await verifySession(c.env, token) : null;
-  if (!claims) return c.json({ error: "unauthorized" }, 401);
+  if (!claims || claims.token_use === APP_TOKEN_USE)
+    return c.json({ error: "unauthorized" }, 401);
   if (!isAdminEmail(c.env, claims.email)) {
     return c.json({ error: "forbidden" }, 403);
   }

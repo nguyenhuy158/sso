@@ -17,7 +17,10 @@ export interface SessionClaims {
   picture: string | null;
   iat: number;
   exp: number;
+  token_use?: typeof APP_TOKEN_USE;
 }
+
+export const APP_TOKEN_USE = "app";
 
 /** Claims for one user, shared by the cookie flow and the auth-key flow so they cannot drift. */
 export function buildClaims(
