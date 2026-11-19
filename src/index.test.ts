@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { redeemAppCode, s256, sealAppCode } from "./app-login";
 import { appReturnUrl, type Env, isAppReturnUrl } from "./env";
 import app from "./index";
-import { APP_TOKEN_USE, buildClaims, signSession } from "./jwt";
+import { API_TOKEN_USE, APP_TOKEN_USE, buildClaims, signSession } from "./jwt";
 
 const ORIGIN = "https://auth.test";
 
@@ -155,8 +155,8 @@ describe("native app login", () => {
   });
 });
 
-describe("app tokens", () => {
-  it("cannot manage auth keys even for the admin", async () => {
+describe("app and api tokens", () => {
+  it("cannot manage auth keys or approve devices, even for the admin", async () => {
     const pair = (await crypto.subtle.generateKey(
       {
         name: "RSASSA-PKCS1-v1_5",
@@ -185,9 +185,10 @@ describe("app tokens", () => {
       );
     const claims = buildClaims(env, who, 60);
     expect((await keysWith(claims)).status).not.toBe(401);
-    expect(
-      (await keysWith({ ...claims, token_use: APP_TOKEN_USE })).status,
-    ).toBe(401);
+    for (const tokenUse of [APP_TOKEN_USE, API_TOKEN_USE])
+      expect((await keysWith({ ...claims, token_use: tokenUse })).status).toBe(
+        401,
+      );
   });
 });
 
