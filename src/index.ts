@@ -37,6 +37,7 @@ import {
 } from "./env";
 import { authorizationUrl, exchangeCode, googleConfigured } from "./google";
 import {
+  API_TOKEN_USE,
   APP_TOKEN_USE,
   buildClaims,
   publicJwks,
@@ -218,7 +219,7 @@ async function requireBrowserSession(
 ): Promise<SessionClaims | Response> {
   const token = getCookie(c, SESSION_COOKIE);
   const claims = token ? await verifySession(c.env, token) : null;
-  if (!claims || claims.token_use === APP_TOKEN_USE)
+  if (!claims || claims.token_use !== undefined)
     return c.json({ error: "unauthorized" }, 401);
   return claims;
 }
@@ -300,14 +301,14 @@ app.post("/token", async (c) => {
   c.header("Cache-Control", "no-store");
   if (!redeemed) return c.json({ error: "invalid_key" }, 401);
   console.log("auth_key_used", redeemed.id);
-  const accessToken = await signSession(
-    c.env,
-    buildClaims(
+  const accessToken = await signSession(c.env, {
+    ...buildClaims(
       c.env,
       { ...redeemed.owner, name: redeemed.owner.owner_name },
       AUTH_KEY_TOKEN_TTL_SECONDS,
     ),
-  );
+    token_use: API_TOKEN_USE,
+  });
   return c.json({
     access_token: accessToken,
     token_type: "Bearer",
