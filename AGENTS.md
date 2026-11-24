@@ -46,7 +46,8 @@ How this repo fits with the others:
 - Talks to: Google OAuth and the shared D1 `db` (`sso_users`). Relied on by
   every app that reads the `huyab_sso` cookie + JWKS: ai-english, chia-keo,
   notes, monitor, share, cardstat, hooks, games, mailer, and the iOS
-  clients (chia-keo-ios, notes-ios, monitor-ios) through WebView login.
+  clients (home, notes-ios, monitor-ios). `chia-keo-ios` is archived; `home`
+  is the Tauri app that replaces it.
 
 ## Build, Test, and Development Commands
 
